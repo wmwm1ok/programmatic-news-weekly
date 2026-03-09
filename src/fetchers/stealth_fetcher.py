@@ -252,10 +252,16 @@ class StealthFetcher:
         extra_items: List[ContentItem],
         limit: int = 2,
     ) -> List[ContentItem]:
-        """合并两组内容并按标题/链接去重。"""
+        """合并两组内容并按标题/链接/语义去重，优先保留 base_items。"""
         combined = []
         seen_urls = set()
         seen_titles = set()
+
+        def is_similar_to_existing(candidate: ContentItem) -> bool:
+            return any(
+                self._title_similarity(candidate.title, existing.title) >= 0.6
+                for existing in combined
+            )
 
         for item in base_items + extra_items:
             title_key = re.sub(r"\W+", "", (item.title or "").lower())
@@ -263,6 +269,8 @@ class StealthFetcher:
             if title_key and title_key in seen_titles:
                 continue
             if url_key and url_key in seen_urls:
+                continue
+            if is_similar_to_existing(item):
                 continue
             if title_key:
                 seen_titles.add(title_key)
@@ -1660,6 +1668,17 @@ class StealthFetcher:
     def _normalize_title_for_similarity(self, text: str) -> str:
         """标准化标题用于相似度比较"""
         text = text.lower()
+
+        phrase_synonyms = {
+            "strategic ad partner": "strategic advertising",
+            "strategic ad platform": "strategic advertising",
+            "ad partner": "advertising",
+            "ad platform": "advertising",
+            "ad tech": "adtech",
+            "artificial intelligence": "ai",
+        }
+        for phrase, canonical in phrase_synonyms.items():
+            text = text.replace(phrase, canonical)
         
         # 扩展同义词替换
         synonyms = {
@@ -1686,7 +1705,25 @@ class StealthFetcher:
             '$1m': '1 million dollars',
             # Unity 相关
             'u': 'unity',
-            'mgNI': 'magnite',
+            'mgni': 'magnite',
+            # 动作/语义近义词
+            'chooses': 'selects',
+            'choose': 'select',
+            'selects': 'select',
+            'selected': 'select',
+            'picks': 'select',
+            'picked': 'select',
+            'appoints': 'names',
+            'appointed': 'names',
+            'hires': 'names',
+            'hired': 'names',
+            'partners': 'partnership',
+            'partner': 'partnership',
+            'platform': 'partnership',
+            'expands': 'expand',
+            'expanded': 'expand',
+            'launches': 'launch',
+            'launched': 'launch',
         }
         
         for abbr, full in synonyms.items():
@@ -1716,15 +1753,17 @@ class StealthFetcher:
             return 0.85
         
         # 计算词集相似度 (Jaccard)
-        words1 = set(t1.split())
-        words2 = set(t2.split())
+        words1_list = t1.split()
+        words2_list = t2.split()
+        words1 = set(words1_list)
+        words2 = set(words2_list)
         
         if not words1 or not words2:
             return 0.0
         
         # 如果核心词（前3个关键词）相同，认为是相似的
-        core1 = set(list(words1)[:3])
-        core2 = set(list(words2)[:3])
+        core1 = set(words1_list[:3])
+        core2 = set(words2_list[:3])
         if len(core1 & core2) >= 2:
             return 0.75
         
