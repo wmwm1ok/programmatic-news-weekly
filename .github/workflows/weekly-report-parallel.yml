@@ -8,6 +8,11 @@ on:
   # 手动触发
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   # 阶段1：并行抓取所有13家公司 + 行业资讯
   fetch-applovin:
@@ -146,3 +151,37 @@ jobs:
           name: weekly-report-final
           path: output/*.html
           retention-days: 30
+
+  deploy-pages:
+    needs: generate-report
+    if: ${{ needs.generate-report.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download final report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: weekly-report-final
+          path: report
+
+      - name: Prepare Pages site
+        run: |
+          mkdir -p site/reports
+          latest_report="$(find report -maxdepth 1 -type f -name '*.html' | sort | tail -n 1)"
+          cp "$latest_report" site/index.html
+          cp "$latest_report" "site/reports/$(basename "$latest_report")"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
