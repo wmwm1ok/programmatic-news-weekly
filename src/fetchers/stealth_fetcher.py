@@ -351,12 +351,15 @@ class StealthFetcher:
             "sell rating", "consensus", "market cap", "valuation", "hedge fund", "etf",
             "portfolio", "13f", "sec filing", "insider trading", "short interest",
             "nasdaq", "nyse", "earnings call preview", "investor sentiment",
+            "investment story", "head-to-head comparison", "outperforms", "underperforms",
+            "soars", "surges", "jumps", "plunges", "slides", "sinks", "rallies",
+            "beats the market", "vs.", "versus",
         ]
         finance_publishers = [
             "benzinga", "marketbeat", "seeking alpha", "zacks", "nasdaq",
             "yahoo finance", "the motley fool", "insidermonkey", "etfdailynews",
             "defense world", "ticker report", "investing.com", "tradingview",
-            "simply wall st", "wallstreetzen", "stock titan",
+            "simply wall st", "wallstreetzen", "stock titan", "ainvest",
         ]
         return any(keyword in haystack for keyword in stock_keywords + finance_publishers)
 
@@ -408,9 +411,10 @@ class StealthFetcher:
         return False
 
     def _is_valid_third_party_item(self, company_key: str, item: ContentItem) -> bool:
-        clean_title, publisher = self._split_google_news_title(item.title)
+        raw_title = item.title
+        clean_title, publisher = self._split_google_news_title(raw_title)
         item.title = clean_title
-        if item.summary == item.title or item.summary == clean_title:
+        if item.summary in {raw_title, item.title, clean_title}:
             item.summary = clean_title
 
         if not self._contains_company_signal(company_key, clean_title):
@@ -1820,11 +1824,10 @@ class StealthFetcher:
                         continue
                     
                     # 尝试获取详情内容（使用 Google News 摘要作为内容）
-                    clean_title, _ = self._split_google_news_title(title)
-                    content = clean_title or title
+                    content = self.clean_text(title)
                     
                     items.append(ContentItem(
-                        title=clean_title or self.clean_text(title),
+                        title=self.clean_text(title),
                         summary=content[:600],
                         date=date_str,
                         url=link,
