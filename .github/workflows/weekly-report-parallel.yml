@@ -175,6 +175,10 @@ jobs:
           latest_report="$(find report -maxdepth 1 -type f -name '*.html' | sort | tail -n 1)"
           cp "$latest_report" site/index.html
           cp "$latest_report" "site/reports/$(basename "$latest_report")"
+          if [ -d deploy/assets ]; then
+            mkdir -p site/assets
+            cp -R deploy/assets/. site/assets/
+          fi
           echo "latest_report=$latest_report" >> "$GITHUB_OUTPUT"
 
       - name: Setup Pages
