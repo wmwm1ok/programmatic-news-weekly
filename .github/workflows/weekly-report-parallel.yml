@@ -190,7 +190,6 @@ jobs:
         uses: actions/deploy-pages@v4
 
       - name: Push report link to Ruliu robot
-        if: ${{ success() && secrets.RULIU_WEBHOOK != '' }}
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
           REPORT_FILE: ${{ steps.report_meta.outputs.latest_report }}
@@ -204,7 +203,11 @@ jobs:
 
           page_url = os.environ["PAGE_URL"]
           report_file = os.environ["REPORT_FILE"]
-          webhook = os.environ["RULIU_WEBHOOK"]
+          webhook = os.environ.get("RULIU_WEBHOOK", "").strip()
+
+          if not webhook:
+              print("RULIU_WEBHOOK is empty, skip notification.")
+              raise SystemExit(0)
 
           match = re.search(r'weekly-report-(\d{4})-(\d{2})-(\d{2})_(\d{4})-(\d{2})-(\d{2})\.html$', report_file)
           if match:
