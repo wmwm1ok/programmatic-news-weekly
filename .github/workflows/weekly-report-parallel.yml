@@ -169,11 +169,13 @@ jobs:
           path: report
 
       - name: Prepare Pages site
+        id: report_meta
         run: |
           mkdir -p site/reports
           latest_report="$(find report -maxdepth 1 -type f -name '*.html' | sort | tail -n 1)"
           cp "$latest_report" site/index.html
           cp "$latest_report" "site/reports/$(basename "$latest_report")"
+          echo "latest_report=$latest_report" >> "$GITHUB_OUTPUT"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -186,3 +188,49 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Push report link to Ruliu robot
+        if: ${{ success() && secrets.RULIU_WEBHOOK != '' }}
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          REPORT_FILE: ${{ steps.report_meta.outputs.latest_report }}
+          RULIU_WEBHOOK: ${{ secrets.RULIU_WEBHOOK }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+
+          page_url = os.environ["PAGE_URL"]
+          report_file = os.environ["REPORT_FILE"]
+          webhook = os.environ["RULIU_WEBHOOK"]
+
+          match = re.search(r'weekly-report-(\d{4})-(\d{2})-(\d{2})_(\d{4})-(\d{2})-(\d{2})\.html$', report_file)
+          if match:
+              title = f"程序化广告竞品周报{match.group(2)}{match.group(3)}-{match.group(5)}{match.group(6)}"
+          else:
+              title = "程序化广告竞品周报"
+
+          payload = {
+              "message": {
+                  "header": {},
+                  "body": [
+                      {
+                          "type": "MD",
+                          "content": f"[{title}]({page_url})"
+                      }
+                  ]
+              }
+          }
+
+          req = urllib.request.Request(
+              webhook,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=15) as resp:
+              body = resp.read().decode("utf-8", errors="replace")
+              print(body)
+          PY
