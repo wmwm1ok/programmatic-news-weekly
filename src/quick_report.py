@@ -14,7 +14,7 @@ from fetchers.competitor_fetcher_v2 import CompetitorFetcherV2
 from fetchers.industry_fetcher import IndustryFetcher
 from summarizer import MockSummarizer
 from validator import Validator
-from renderer import HTMLRenderer
+from renderer import HTMLRenderer, save_report_outputs
 from mailer import MockMailer
 
 def generate_quick_report():
@@ -70,7 +70,15 @@ def generate_quick_report():
     # 5. 生成 HTML
     renderer = HTMLRenderer()
     html = renderer.render(competitor_valid, industry_valid, start_str, end_str)
-    output_path = renderer.save(html, start_str, end_str)
+    outputs = save_report_outputs(
+        competitor_valid,
+        industry_valid,
+        start_str,
+        end_str,
+        html_content=html,
+        html_renderer=renderer,
+    )
+    output_path = outputs["html_path"]
     
     # 6. 模拟发送邮件
     mailer = MockMailer()
@@ -78,7 +86,8 @@ def generate_quick_report():
     
     print(f"\n{'=' * 60}")
     print(f"✅ 周报生成成功!")
-    print(f"  文件: {output_path}")
+    print(f"  HTML 文件: {output_path}")
+    print(f"  Markdown 文件: {outputs['markdown_path']}")
     print(f"  竞品: {sum(len(v) for v in competitor_valid.values())} 条")
     print(f"  行业: {sum(len(v) for v in industry_valid.values())} 条")
     print('=' * 60)
@@ -86,6 +95,7 @@ def generate_quick_report():
     return {
         "success": True,
         "output_path": output_path,
+        "markdown_output_path": outputs["markdown_path"],
         "competitor_count": sum(len(v) for v in competitor_valid.values()),
         "industry_count": sum(len(v) for v in industry_valid.values()),
     }

@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 from fetchers.hybrid_fetcher import HybridCompetitorFetcher
 from fetchers.industry_fetcher import IndustryFetcher
 from summarizer import Summarizer
-from renderer import HTMLRenderer
+from renderer import HTMLRenderer, save_report_outputs
 from email_sender import send_weekly_report
 
 
@@ -161,8 +161,17 @@ def main():
         html = renderer.render(competitor_results, industry_items, start_str, end_str)
         
         # 保存到本地
-        output_path = renderer.save(html, start_str, end_str)
-        print(f"\n✅ 报告已保存: {output_path}")
+        outputs = save_report_outputs(
+            competitor_results,
+            industry_items,
+            start_str,
+            end_str,
+            html_content=html,
+            html_renderer=renderer,
+        )
+        output_path = outputs["html_path"]
+        print(f"\n✅ HTML 报告已保存: {output_path}")
+        print(f"✅ Markdown 报告已保存: {outputs['markdown_path']}")
         
         # 5. 发送邮件
         if send_email:

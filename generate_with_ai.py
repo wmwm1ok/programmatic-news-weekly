@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from fetchers.hybrid_fetcher import HybridCompetitorFetcher
 from fetchers.industry_fetcher import IndustryFetcher
 from summarizer import Summarizer
-from renderer import HTMLRenderer
+from renderer import HTMLRenderer, save_report_outputs
 
 print("=" * 70)
 print("使用 DeepSeek API 生成周报")
@@ -131,10 +131,19 @@ print("\n[4/4] 生成 HTML...")
 try:
     renderer = HTMLRenderer()
     html = renderer.render(competitor_results, industry_items, start_str, end_str)
-    output_path = renderer.save(html, start_str, end_str)
+    outputs = save_report_outputs(
+        competitor_results,
+        industry_items,
+        start_str,
+        end_str,
+        html_content=html,
+        html_renderer=renderer,
+    )
+    output_path = outputs["html_path"]
     
     print(f"\n{'=' * 70}")
-    print(f"✅ 周报已生成: {output_path}")
+    print(f"✅ HTML 周报已生成: {output_path}")
+    print(f"✅ Markdown 周报已生成: {outputs['markdown_path']}")
     print(f"  竞品: {len(competitor_items)} 条")
     print(f"  行业: {total_ind} 条")
     print(f"  总计: {len(competitor_items) + total_ind} 条")

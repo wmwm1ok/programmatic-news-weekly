@@ -1,6 +1,6 @@
 # 周报自动化系统
 
-自动化竞品周报系统，自动抓取指定来源在"近 7 日窗口"内发布的内容，生成固定模板的 HTML 周报文件，并将 HTML 作为邮件正文发送至指定收件人。
+自动化竞品周报系统，自动抓取指定来源在"近 7 日窗口"内发布的内容，同步生成固定模板的 HTML 页面和机器可读的 Markdown 周报，并将 HTML 作为邮件正文发送至指定收件人。
 
 ## 功能特性
 
@@ -8,7 +8,7 @@
 - **行业资讯抓取**：支持 5 个子模块（Publisher/Technology/Platform/AI/Others）
 - **智能摘要生成**：使用 DeepSeek API 生成 80-100 字中文摘要
 - **内容验证**：链接可用性、日期窗口、摘要长度、摘要质量验证
-- **HTML 渲染**：固定模板，支持竞品两列表格和行业单列卡片
+- **双格式输出**：固定模板 HTML 页面 + 机器可读 Markdown 周报
 - **邮件发送**：自动发送 HTML 周报至指定收件人
 
 ## 项目结构
@@ -25,7 +25,7 @@ weekly-report-automation/
 │   │   └── industry_fetcher.py    # 行业抓取器（5个子模块）
 │   ├── summarizer.py         # DeepSeek 摘要生成
 │   ├── validator.py          # 内容验证
-│   ├── renderer.py           # HTML 渲染
+│   ├── renderer.py           # HTML / Markdown 渲染
 │   ├── mailer.py             # 邮件发送
 │   └── main.py               # 主程序入口
 ├── templates/
@@ -82,7 +82,8 @@ python src/main.py --test
 ## 输出文件
 
 - HTML 文件：`output/weekly-report-YYYY-MM-DD_YYYY-MM-DD.html`
-- 文件名包含日期范围
+- Markdown 文件：`output/weekly-report-YYYY-MM-DD_YYYY-MM-DD.md`
+- GitHub Pages 会同步发布最新 Markdown：`/latest.md`
 
 ## 数据来源
 

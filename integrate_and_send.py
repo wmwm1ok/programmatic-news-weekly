@@ -16,7 +16,7 @@ sys.path.insert(0, 'src')
 
 from fetchers.base import ContentItem
 from fetchers.stealth_fetcher import StealthFetcher
-from renderer import HTMLRenderer
+from renderer import HTMLRenderer, save_report_outputs
 from email_sender import send_weekly_report
 from config.settings import COMPETITOR_SOURCES
 
@@ -286,8 +286,17 @@ def main():
         html = renderer.render(competitor_results, industry_results, start_str, end_str)
         
         # 保存到本地
-        output_path = renderer.save(html, start_str, end_str)
-        print(f"\n✅ 报告已保存: {output_path}")
+        outputs = save_report_outputs(
+            competitor_results,
+            industry_results,
+            start_str,
+            end_str,
+            html_content=html,
+            html_renderer=renderer,
+        )
+        output_path = outputs["html_path"]
+        print(f"\n✅ HTML 报告已保存: {output_path}")
+        print(f"✅ Markdown 报告已保存: {outputs['markdown_path']}")
         
         # 发送邮件
         if send_email:

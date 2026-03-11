@@ -19,7 +19,7 @@ from fetchers.competitor_fetcher_v2 import CompetitorFetcherV2
 from fetchers.hybrid_fetcher import HybridCompetitorFetcher
 from summarizer import Summarizer, MockSummarizer
 from validator import Validator, ValidationError
-from renderer import HTMLRenderer
+from renderer import HTMLRenderer, save_report_outputs
 from mailer import Mailer, MockMailer
 
 
@@ -167,8 +167,17 @@ def main(run_date: datetime = None, test_mode: bool = False, dry_run: bool = Fal
         }
     
     # 保存文件
-    output_path = renderer.save(html_content, start_date_str, end_date_str)
+    outputs = save_report_outputs(
+        validated_competitor,
+        validated_industry,
+        start_date_str,
+        end_date_str,
+        html_content=html_content,
+        html_renderer=renderer,
+    )
+    output_path = outputs["html_path"]
     print(f"  ✓ HTML 文件已保存: {output_path}")
+    print(f"  ✓ Markdown 文件已保存: {outputs['markdown_path']}")
     
     # 8. 发送邮件
     print("\n[邮件发送]")
@@ -178,6 +187,7 @@ def main(run_date: datetime = None, test_mode: bool = False, dry_run: bool = Fal
     return {
         "success": True,
         "output_path": output_path,
+        "markdown_output_path": outputs["markdown_path"],
         "competitor_count": sum(len(items) for items in validated_competitor.values()),
         "industry_count": sum(len(items) for items in validated_industry.values()),
         "start_date": start_date_str,
@@ -268,12 +278,22 @@ def generate_demo_report(start_date: str, end_date: str) -> dict:
     html_content = renderer.render(competitor_items, industry_items, start_date, end_date)
     
     # 保存文件
-    output_path = renderer.save(html_content, start_date, end_date)
-    print(f"  ✓ 示例报告已生成: {output_path}")
+    outputs = save_report_outputs(
+        competitor_items,
+        industry_items,
+        start_date,
+        end_date,
+        html_content=html_content,
+        html_renderer=renderer,
+    )
+    output_path = outputs["html_path"]
+    print(f"  ✓ HTML 示例报告已生成: {output_path}")
+    print(f"  ✓ Markdown 示例报告已生成: {outputs['markdown_path']}")
     
     return {
         "success": True,
         "output_path": output_path,
+        "markdown_output_path": outputs["markdown_path"],
         "competitor_count": sum(len(items) for items in competitor_items.values()),
         "industry_count": sum(len(items) for items in industry_items.values()),
         "start_date": start_date,

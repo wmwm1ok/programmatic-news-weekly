@@ -150,7 +150,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: weekly-report-final
-          path: output/*.html
+          path: |
+            output/*.html
+            output/*.md
           retention-days: 30
 
   deploy-pages:
@@ -173,8 +175,13 @@ jobs:
         run: |
           mkdir -p site/reports
           latest_report="$(find report -maxdepth 1 -type f -name '*.html' | sort | tail -n 1)"
+          latest_markdown="${latest_report%.html}.md"
           cp "$latest_report" site/index.html
           cp "$latest_report" "site/reports/$(basename "$latest_report")"
+          if [ -f "$latest_markdown" ]; then
+            cp "$latest_markdown" site/latest.md
+            cp "$latest_markdown" "site/reports/$(basename "$latest_markdown")"
+          fi
           if [ -d deploy/assets ]; then
             mkdir -p site/assets
             cp -R deploy/assets/. site/assets/
