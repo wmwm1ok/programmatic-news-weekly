@@ -50,8 +50,8 @@ class HTMLRenderer:
         html = html.replace("{{START_DATE}}", start_date)
         html = html.replace("{{END_DATE}}", end_date)
         html = html.replace("{{GENERATED_AT}}", datetime.now().strftime("%Y-%m-%d %H:%M"))
-        report_title = f"程序化广告竞品周报 {start_date} ~ {end_date}"
-        report_description = "程序化广告竞品与行业资讯周报，涵盖 13 家竞品与行业资讯汇总。"
+        report_title = f"程序化广告竞品及行业资讯 {start_date} ~ {end_date}"
+        report_description = "程序化广告竞品及行业资讯汇总，涵盖 13 家竞品与重点行业动态。"
         html = html.replace("{{REPORT_TITLE}}", report_title)
         html = html.replace("{{REPORT_DESCRIPTION}}", report_description)
         html = html.replace("{{REPORT_COVER_URL}}", self.REPORT_COVER_URL)
