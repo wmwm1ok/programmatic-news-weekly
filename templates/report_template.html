@@ -15,217 +15,407 @@
     <meta name="twitter:description" content="{{REPORT_DESCRIPTION}}">
     <meta name="twitter:image" content="{{REPORT_COVER_URL}}">
     <style>
+        :root {
+            --bg: #eef3f8;
+            --surface: #ffffff;
+            --surface-soft: #f8fbff;
+            --surface-muted: #f5f7fa;
+            --border: #dbe5f0;
+            --border-strong: #c9d9ea;
+            --text: #1f2937;
+            --text-secondary: #4b5563;
+            --text-muted: #6b7280;
+            --brand: #1677ff;
+            --brand-soft: rgba(22, 119, 255, 0.12);
+            --shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+            --radius-lg: 24px;
+            --radius-md: 18px;
+            --radius-sm: 12px;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f5f5f5;
-            padding: 20px;
+            line-height: 1.75;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top, rgba(22, 119, 255, 0.08), transparent 30%),
+                var(--bg);
+            padding: clamp(16px, 3vw, 32px);
         }
-        
+
+        a {
+            color: inherit;
+        }
+
         .container {
-            max-width: 900px;
+            max-width: 1080px;
             margin: 0 auto;
-            background-color: #fff;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background-color: var(--surface);
+            padding: clamp(20px, 4vw, 44px);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
         }
-        
+
+        .page-header {
+            padding: clamp(20px, 4vw, 32px);
+            background: linear-gradient(135deg, rgba(22, 119, 255, 0.12), rgba(22, 119, 255, 0.04));
+            border: 1px solid rgba(22, 119, 255, 0.12);
+            border-radius: calc(var(--radius-lg) - 4px);
+            margin-bottom: clamp(28px, 4vw, 40px);
+        }
+
         h1 {
-            font-size: 24px;
-            color: #1a1a1a;
-            margin-bottom: 8px;
-            border-bottom: 2px solid #1890ff;
-            padding-bottom: 12px;
+            font-size: clamp(28px, 4vw, 40px);
+            line-height: 1.2;
+            color: #111827;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
         }
-        
+
         .date-range {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             font-size: 14px;
-            color: #666;
-            margin-bottom: 30px;
+            color: var(--brand);
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(22, 119, 255, 0.15);
+            border-radius: 999px;
+            padding: 8px 14px;
+            margin-bottom: 12px;
         }
-        
+
+        .report-summary {
+            max-width: 780px;
+            font-size: clamp(15px, 2.2vw, 17px);
+            color: var(--text-secondary);
+        }
+
+        .report-section {
+            margin-top: clamp(28px, 4vw, 40px);
+        }
+
         h2 {
-            font-size: 18px;
-            color: #1890ff;
-            margin: 30px 0 15px 0;
-            padding-left: 12px;
-            border-left: 4px solid #1890ff;
+            font-size: clamp(20px, 2.6vw, 26px);
+            color: #0f172a;
+            margin: 0 0 18px 0;
+            padding-left: 14px;
+            border-left: 4px solid var(--brand);
         }
-        
+
         h3 {
-            font-size: 15px;
-            color: #333;
-            margin: 20px 0 12px 0;
-            padding-bottom: 6px;
-            border-bottom: 1px solid #e8e8e8;
+            font-size: clamp(16px, 2.2vw, 18px);
+            color: var(--text);
+            margin: 0 0 14px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
         }
-        
-        /* 竞品资讯表格样式 */
+
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
         .competitor-table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 16px;
             font-size: 14px;
         }
-        
+
         .competitor-table th {
-            background-color: #f8f9fa;
-            padding: 12px;
+            background-color: var(--surface-soft);
+            padding: 14px 16px;
             text-align: left;
             font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #e8e8e8;
+            color: var(--text);
+            border-bottom: 1px solid var(--border-strong);
         }
-        
+
+        .competitor-table th:first-child {
+            border-top-left-radius: var(--radius-md);
+        }
+
+        .competitor-table th:last-child {
+            border-top-right-radius: var(--radius-md);
+        }
+
         .competitor-table td {
-            padding: 15px 12px;
-            border-bottom: 1px solid #e8e8e8;
+            padding: 20px 16px;
+            border-bottom: 1px solid var(--border);
             vertical-align: top;
+            background: var(--surface);
         }
-        
+
         .competitor-table tr:hover {
-            background-color: #f8f9fa;
+            background-color: transparent;
         }
-        
+
+        .competitor-table tr:hover td {
+            background-color: #fcfdff;
+        }
+
         .company {
-            font-weight: 600;
-            color: #1890ff;
-            white-space: nowrap;
-            width: 120px;
-        }
-        
-        /* 通用内容样式 */
-        .item-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #1a1a1a;
-            margin-bottom: 8px;
+            width: 140px;
+            font-weight: 700;
+            color: var(--brand);
+            white-space: normal;
             line-height: 1.4;
         }
-        
+
+        .item-title {
+            font-size: clamp(16px, 2vw, 18px);
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 10px;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
         .item-summary {
-            font-size: 14px;
-            color: #555;
-            line-height: 1.6;
-            margin-bottom: 8px;
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 10px;
         }
-        
+
         .item-meta {
-            font-size: 12px;
-            color: #999;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            align-items: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            overflow-wrap: anywhere;
         }
-        
+
         .item-meta a {
-            color: #1890ff;
+            color: var(--brand);
             text-decoration: none;
+            font-weight: 500;
         }
-        
+
         .item-meta a:hover {
             text-decoration: underline;
         }
-        
-        /* 行业资讯卡片样式 */
+
         .industry-section {
-            margin-top: 20px;
+            margin-top: 18px;
         }
-        
+
         .industry-subsection {
-            margin-bottom: 25px;
+            margin-bottom: 28px;
         }
-        
+
         .industry-item {
-            padding: 15px;
-            background-color: #fafafa;
-            border-radius: 6px;
-            margin-bottom: 12px;
+            padding: 18px 20px;
+            background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            margin-bottom: 14px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
         }
-        
+
         .industry-item:last-child {
             margin-bottom: 0;
         }
-        
-        /* 隐藏类 */
+
         .hidden {
             display: none !important;
         }
-        
-        /* 空状态 */
+
         .empty-state {
             text-align: center;
             padding: 30px;
-            color: #999;
+            color: var(--text-muted);
             font-size: 14px;
         }
-        
-        /* 统计信息 */
+
         .stats {
             background-color: #f0f7ff;
             padding: 15px 20px;
-            border-radius: 6px;
+            border-radius: var(--radius-sm);
             margin-bottom: 20px;
             font-size: 14px;
-            color: #555;
+            color: var(--text-secondary);
         }
-        
+
         .stats strong {
-            color: #1890ff;
+            color: var(--brand);
         }
-        
-        /* 页脚 */
+
         .footer {
-            margin-top: 40px;
+            margin-top: clamp(32px, 5vw, 48px);
             padding-top: 20px;
-            border-top: 1px solid #e8e8e8;
+            border-top: 1px solid var(--border);
             font-size: 12px;
-            color: #999;
+            color: var(--text-muted);
             text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+
+            .container {
+                padding: 18px 16px 28px;
+                border-radius: 0;
+                box-shadow: none;
+                min-height: 100vh;
+            }
+
+            .page-header {
+                padding: 18px 16px;
+                border-radius: var(--radius-md);
+                margin-bottom: 24px;
+            }
+
+            .date-range {
+                font-size: 13px;
+                margin-bottom: 10px;
+            }
+
+            .table-wrapper {
+                overflow: visible;
+            }
+
+            .competitor-table,
+            .competitor-table thead,
+            .competitor-table tbody,
+            .competitor-table tr,
+            .competitor-table td {
+                display: block;
+                width: 100%;
+            }
+
+            .competitor-table {
+                margin-top: 14px;
+            }
+
+            .competitor-table thead {
+                display: none;
+            }
+
+            .competitor-table tbody {
+                display: grid;
+                gap: 14px;
+            }
+
+            .competitor-table tr {
+                padding: 16px;
+                border: 1px solid var(--border);
+                border-radius: var(--radius-md);
+                background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+                box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+            }
+
+            .competitor-table td {
+                padding: 0;
+                border: 0;
+                background: transparent;
+            }
+
+            .competitor-table tr:hover td {
+                background: transparent;
+            }
+
+            .company {
+                display: inline-flex;
+                align-items: center;
+                width: fit-content;
+                margin-bottom: 14px;
+                padding: 6px 12px;
+                border-radius: 999px;
+                background: var(--brand-soft);
+                color: var(--brand);
+                font-size: 13px;
+            }
+
+            .item-title {
+                margin-bottom: 8px;
+            }
+
+            .item-summary {
+                font-size: 14px;
+                line-height: 1.75;
+            }
+
+            .industry-item {
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h2 {
+                padding-left: 12px;
+            }
+
+            .page-header {
+                padding: 16px 14px;
+            }
+
+            .competitor-table tr {
+                padding: 14px;
+            }
+
+            .item-meta {
+                gap: 6px 10px;
+                font-size: 12px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>竞品周报</h1>
-        <p class="date-range">{{START_DATE}} ~ {{END_DATE}}</p>
-        
-        <!-- 竞品资讯模块 -->
-        <h2>一、竞品资讯</h2>
-        <table class="competitor-table">
-            <thead>
-                <tr>
-                    <th style="width: 120px;">公司</th>
-                    <th>内容</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{COMPETITOR_SECTION_HTML}}
-            </tbody>
-        </table>
-        
-        <!-- 行业资讯模块 -->
-        <h2>二、行业资讯</h2>
-        <div class="industry-section">
-            
-            <!-- AdExchanger Popular -->
-            <div class="industry-subsection {{ADEXCHANGER_HIDDEN_CLASS}}">
-                <h3>📰 AdExchanger Popular</h3>
-                {{ADEXCHANGER_ITEMS_HTML}}
+        <header class="page-header">
+            <p class="date-range">{{START_DATE}} ~ {{END_DATE}}</p>
+            <h1>竞品周报</h1>
+            <p class="report-summary">聚合程序化广告竞品动态与行业资讯，兼顾桌面端的信息浏览效率，以及移动端的连续阅读体验。</p>
+        </header>
+
+        <section class="report-section">
+            <h2>一、竞品资讯</h2>
+            <div class="table-wrapper">
+                <table class="competitor-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 140px;">公司</th>
+                            <th>内容</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{COMPETITOR_SECTION_HTML}}
+                    </tbody>
+                </table>
             </div>
+        </section>
+
+        <section class="report-section">
+            <h2>二、行业资讯</h2>
+            <div class="industry-section">
             
-            <!-- Search Engine Land -->
-            <div class="industry-subsection {{SEL_HIDDEN_CLASS}}">
-                <h3>🔍 Search Engine Land</h3>
-                {{SEL_ITEMS_HTML}}
+                <!-- AdExchanger Popular -->
+                <div class="industry-subsection {{ADEXCHANGER_HIDDEN_CLASS}}">
+                    <h3>📰 AdExchanger Popular</h3>
+                    {{ADEXCHANGER_ITEMS_HTML}}
+                </div>
+            
+                <!-- Search Engine Land -->
+                <div class="industry-subsection {{SEL_HIDDEN_CLASS}}">
+                    <h3>🔍 Search Engine Land</h3>
+                    {{SEL_ITEMS_HTML}}
+                </div>
+                
             </div>
-            
-        </div>
+        </section>
         
         <div class="footer">
             本报告由自动化系统生成 · {{GENERATED_AT}}
