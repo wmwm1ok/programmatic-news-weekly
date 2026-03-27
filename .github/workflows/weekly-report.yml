@@ -47,7 +47,7 @@ jobs:
           python run_weekly_report.py
       
       - name: Upload report artifact
-        if: always()
+        if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: weekly-report-${{ github.run_id }}
