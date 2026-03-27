@@ -3,6 +3,7 @@
 """
 
 import os
+import re
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -70,6 +71,7 @@ class HTMLRenderer:
         html = html.replace("{{END_DATE}}", end_date)
         html = html.replace("{{GENERATED_AT}}", datetime.now().strftime("%Y-%m-%d %H:%M"))
         html = html.replace("{{REPORT_TITLE}}", build_report_title(start_date, end_date, self.language))
+        html = html.replace("{{HTML_LANG}}", "zh-CN" if self.language == "zh" else "en")
         html = html.replace(
             "{{REPORT_DESCRIPTION}}",
             REPORT_DESCRIPTION if self.language == "zh" else EN_REPORT_DESCRIPTION,
@@ -121,7 +123,7 @@ class HTMLRenderer:
   <td class="company">{company}</td>
   <td>
     <p class="item-title">{self._escape_html(item.title)}</p>
-    <p class="item-summary">{self._escape_html(item.summary)}</p>
+    <p class="item-summary">{self._escape_html(self._format_summary_for_display(item.summary))}</p>
     <p class="item-meta">{item.date} · <a href="{item.url}" target="_blank" rel="noopener">{link_label}</a></p>
   </td>
 </tr>"""
@@ -146,7 +148,7 @@ class HTMLRenderer:
                 for item in source_items:
                     card_html = f"""<div class="industry-item">
   <p class="item-title">{self._escape_html(item.title)}</p>
-  <p class="item-summary">{self._escape_html(item.summary)}</p>
+  <p class="item-summary">{self._escape_html(self._format_summary_for_display(item.summary))}</p>
   <p class="item-meta">{item.date} · <a href="{item.url}" target="_blank" rel="noopener">{link_label}</a></p>
 </div>"""
                     cards.append(card_html)
@@ -168,6 +170,36 @@ class HTMLRenderer:
         text = text.replace('"', "&quot;")
         text = text.replace("'", "&#x27;")
         return text
+
+    def _format_summary_for_display(self, text: str) -> str:
+        if not text:
+            return "无摘要" if self.language == "zh" else "No summary"
+
+        text = " ".join(str(text).split())
+        if self.language == "zh":
+            if text.endswith(("。", "！", "？", "…")):
+                return text
+            return text + "…"
+
+        max_length = 280
+        if len(text) > max_length:
+            sentence_matches = list(re.finditer(r"[.!?](?=\s|$)", text[: max_length + 1]))
+            if sentence_matches:
+                text = text[: sentence_matches[-1].end()].strip()
+            else:
+                cut = text[:max_length].rsplit(" ", 1)[0].strip() or text[:max_length].strip()
+                text = cut.rstrip(",;: ")
+                if not text.endswith("..."):
+                    text += "..."
+                return text
+
+        if re.search(r'[.!?]["\')\]]*$', text):
+            return text
+
+        trimmed = text.rstrip(",;: ")
+        if trimmed.endswith("..."):
+            return trimmed
+        return trimmed + "..."
 
     def save(self, html_content: str, start_date: str, end_date: str) -> str:
         prefix = "weekly-report" if self.language == "zh" else "weekly-report-en"
