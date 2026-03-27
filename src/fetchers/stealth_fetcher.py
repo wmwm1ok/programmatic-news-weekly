@@ -479,13 +479,14 @@ class StealthFetcher:
             "nasdaq", "nyse", "earnings call preview", "investor sentiment",
             "investment story", "head-to-head comparison", "outperforms", "underperforms",
             "soars", "surges", "jumps", "plunges", "slides", "sinks", "rallies",
-            "beats the market", "vs.", "versus",
+            "beats the market", "vs.", "versus", "/quote/", "stock/news",
         ]
         finance_publishers = [
             "benzinga", "marketbeat", "seeking alpha", "zacks", "nasdaq",
             "yahoo finance", "the motley fool", "insidermonkey", "etfdailynews",
             "defense world", "ticker report", "investing.com", "tradingview",
             "simply wall st", "wallstreetzen", "stock titan", "ainvest",
+            "finance.yahoo.com",
         ]
         return any(keyword in haystack for keyword in stock_keywords + finance_publishers)
 
@@ -533,6 +534,14 @@ class StealthFetcher:
                 "national unity", "unity government", "church", "school", "festival",
             ]
             return any(keyword in haystack for keyword in unity_off_topic)
+
+        if company_key == "Magnite":
+            magnite_off_topic = [
+                "nissan magnite", "hyundai exter", "car", "cars", "automobile",
+                "automotive", "vehicle", "vehicles", "suv", "mileage", "price in india",
+                "facelift", "bhp", "specs", "variant", "showroom", "mpv",
+            ]
+            return any(keyword in haystack for keyword in magnite_off_topic)
 
         return False
 
@@ -797,7 +806,7 @@ class StealthFetcher:
             "Viant Technology": ['"Viant Technology"', 'Viant advertising', 'Viant ad tech'],
             "Zeta Global": ['"Zeta Global"', 'Zeta Global marketing', 'Zeta Global advertising'],
             "PubMatic": ['PubMatic', 'PubMatic advertising', 'PubMatic ad tech'],
-            "Magnite": ['Magnite', 'Magnite advertising', 'Magnite CTV'],
+            "Magnite": ['"Magnite" advertising', '"Magnite" CTV', '"Magnite" ad tech'],
         }
         queries = query_map.get(company_key, [f'"{source_name}"'])
         existing_items = existing_items or []
