@@ -161,7 +161,11 @@ jobs:
 
       - name: Verify bilingual outputs
         run: |
-          zh_report="$(find output -maxdepth 1 -type f -name 'weekly-report-*.html' ! -name '*-en.html' | sort | tail -n 1)"
+          expected_company_results=14
+          actual_company_results="$(find artifacts -maxdepth 1 -type f -name '*_result.json' ! -name 'industry_result.json' | wc -l | tr -d ' ')"
+          echo "Company result files: ${actual_company_results}/${expected_company_results}"
+          test "$actual_company_results" -eq "$expected_company_results"
+          zh_report="$(find output -maxdepth 1 -type f -name 'weekly-report-*.html' ! -name 'weekly-report-en-*.html' | sort | tail -n 1)"
           en_report="$(find output -maxdepth 1 -type f -name 'weekly-report-en-*.html' | sort | tail -n 1)"
           test -n "$zh_report"
           test -f "$zh_report"
@@ -200,7 +204,7 @@ jobs:
         run: |
           mkdir -p site/reports
           mkdir -p site/en/reports
-          latest_report="$(find report -maxdepth 1 -type f -name 'weekly-report-*.html' ! -name '*-en.html' | sort | tail -n 1)"
+          latest_report="$(find report -maxdepth 1 -type f -name 'weekly-report-*.html' ! -name 'weekly-report-en-*.html' | sort | tail -n 1)"
           latest_markdown="${latest_report%.html}.md"
           latest_report_en="$(find report -maxdepth 1 -type f -name 'weekly-report-en-*.html' | sort | tail -n 1)"
           latest_markdown_en="${latest_report_en%.html}.md"
