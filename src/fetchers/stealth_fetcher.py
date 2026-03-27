@@ -348,6 +348,17 @@ class StealthFetcher:
         except Exception:
             return article_url, ""
 
+    def _has_resolved_third_party_article(self, resolved_url: str, resolved_date: str) -> bool:
+        """第三方兜底稿件必须解析出真实落地页和真实日期。"""
+        if not resolved_url or not resolved_date:
+            return False
+
+        domain = self._normalize_domain(resolved_url)
+        if not domain or "google." in domain:
+            return False
+
+        return True
+
     def _sort_and_limit_items(self, items: List[ContentItem], limit: int = 2) -> List[ContentItem]:
         """去重后按日期倒序排序，并限制条数。"""
         deduped = self._dedupe_items(items, similarity_threshold=0.6)
@@ -1973,10 +1984,12 @@ class StealthFetcher:
                         publisher,
                         publisher_url,
                     )
-                    if resolved_date:
-                        date_str = resolved_date
-                    if resolved_url:
-                        link = resolved_url
+                    if not self._has_resolved_third_party_article(resolved_url, resolved_date):
+                        print(f"    - 丢弃第三方稿(未解析到真实日期): {article_title[:80]}...")
+                        continue
+
+                    date_str = resolved_date
+                    link = resolved_url
                     
                     # 检查日期窗口
                     if not self.is_in_date_window(date_str, window_start, window_end):
