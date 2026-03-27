@@ -179,13 +179,24 @@ jobs:
         id: report_meta
         run: |
           mkdir -p site/reports
-          latest_report="$(find report -maxdepth 1 -type f -name '*.html' | sort | tail -n 1)"
+          mkdir -p site/en/reports
+          latest_report="$(find report -maxdepth 1 -type f -name 'weekly-report-*.html' ! -name '*-en.html' | sort | tail -n 1)"
           latest_markdown="${latest_report%.html}.md"
+          latest_report_en="$(find report -maxdepth 1 -type f -name 'weekly-report-en-*.html' | sort | tail -n 1)"
+          latest_markdown_en="${latest_report_en%.html}.md"
           cp "$latest_report" site/index.html
           cp "$latest_report" "site/reports/$(basename "$latest_report")"
           if [ -f "$latest_markdown" ]; then
             cp "$latest_markdown" site/latest.md
             cp "$latest_markdown" "site/reports/$(basename "$latest_markdown")"
+          fi
+          if [ -n "$latest_report_en" ] && [ -f "$latest_report_en" ]; then
+            cp "$latest_report_en" site/en/index.html
+            cp "$latest_report_en" "site/en/reports/$(basename "$latest_report_en")"
+          fi
+          if [ -n "$latest_markdown_en" ] && [ -f "$latest_markdown_en" ]; then
+            cp "$latest_markdown_en" site/en/latest.md
+            cp "$latest_markdown_en" "site/en/reports/$(basename "$latest_markdown_en")"
           fi
           if [ -d deploy/assets ]; then
             mkdir -p site/assets

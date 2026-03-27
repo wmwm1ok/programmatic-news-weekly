@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -17,7 +18,7 @@ sys.path.insert(0, 'src')
 
 from fetchers.base import ContentItem
 from fetchers.stealth_fetcher import StealthFetcher
-from renderer import HTMLRenderer, save_report_outputs
+from renderer import save_bilingual_report_outputs
 from email_sender import send_weekly_report
 from config.settings import COMPETITOR_SOURCES
 from report_history import filter_competitor_results, filter_historical_duplicates, load_previous_report_signatures
@@ -330,6 +331,8 @@ def main():
     print("\n[2/3] 加载行业资讯...")
     industry_results = load_industry_results()
     total_ind = sum(len(v) for v in industry_results.values())
+    english_competitor_results = copy.deepcopy(competitor_results)
+    english_industry_results = copy.deepcopy(industry_results)
     
     # 3. 生成中文标题和摘要
     if use_ai_summary:
@@ -356,26 +359,26 @@ def main():
     # 4. 生成 HTML 报告
     print("\n[4/4] 生成 HTML 报告...")
     try:
-        renderer = HTMLRenderer()
-        html = renderer.render(competitor_results, industry_results, start_str, end_str)
-        
-        # 保存到本地
-        outputs = save_report_outputs(
+        bilingual_outputs = save_bilingual_report_outputs(
             competitor_results,
             industry_results,
+            english_competitor_results,
+            english_industry_results,
             start_str,
             end_str,
-            html_content=html,
-            html_renderer=renderer,
         )
+        outputs = bilingual_outputs["zh"]
+        en_outputs = bilingual_outputs["en"]
         output_path = outputs["html_path"]
         print(f"\n✅ HTML 报告已保存: {output_path}")
         print(f"✅ Markdown 报告已保存: {outputs['markdown_path']}")
+        print(f"✅ English HTML report saved: {en_outputs['html_path']}")
+        print(f"✅ English Markdown report saved: {en_outputs['markdown_path']}")
         
         # 发送邮件
         if send_email:
             print("\n📧 发送邮件...")
-            success = send_weekly_report(html, start_str, end_str)
+            success = send_weekly_report(outputs["html"], start_str, end_str)
             if success:
                 print("\n" + "=" * 70)
                 print("✅ 周报生成并发送成功!")
