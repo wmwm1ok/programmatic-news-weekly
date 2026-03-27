@@ -2125,33 +2125,13 @@ class StealthFetcher:
                                 source_date = f"{date_match.group(3)}-{months.get(date_match.group(2).lower(), '01')}-{date_match.group(1).zfill(2)}"
 
                     article_title, _ = self._split_google_news_title(title)
-                    resolved_url, resolved_date = self._resolve_third_party_article(
-                        article_title,
-                        publisher,
-                        publisher_url,
-                    )
-                    if not self._has_resolved_third_party_article(resolved_url):
-                        if not resolved_url:
-                            print(f"    - 丢弃第三方稿(未解析到真实链接): {article_title[:80]}...")
-                        else:
-                            print(f"    - 丢弃第三方稿(真实落地页无效): {article_title[:80]}...")
+                    if not source_date:
+                        print(f"    - 丢弃第三方稿(未解析到来源日期): {article_title[:80]}...")
                         continue
 
-                    effective_date = resolved_date
-                    if not effective_date and source_date and self._supports_source_date_fallback(
-                        publisher,
-                        publisher_url,
-                        resolved_url,
-                    ):
-                        effective_date = source_date
-                        print(f"    ~ 第三方稿回退到来源日期: {article_title[:80]}... ({effective_date})")
-
-                    if not effective_date:
-                        print(f"    - 丢弃第三方稿(未解析到真实日期): {article_title[:80]}...")
-                        continue
-
-                    date_str = effective_date
-                    link = resolved_url
+                    # 临时停用真实链接解析规则，直接使用 Google News 聚合链接和来源日期，
+                    # 先保证第三方兜底链路稳定可用。
+                    date_str = source_date
                     
                     # 检查日期窗口
                     if not self.is_in_date_window(date_str, window_start, window_end):

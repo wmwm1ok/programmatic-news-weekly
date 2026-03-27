@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import copy
+from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -273,6 +274,75 @@ def generate_chinese_title_summary(title, summary):
         return title, summary[:200] if summary else "无摘要"
 
 
+def fallback_english_summary(summary: str) -> str:
+    text = " ".join((summary or "").split())
+    if not text:
+        return "No summary"
+
+    sentence_matches = list(re.finditer(r"[.!?](?=\s|$)", text))
+    if sentence_matches:
+        collected = []
+        start = 0
+        for match in sentence_matches[:2]:
+            end = match.end()
+            collected.append(text[start:end].strip())
+            start = end
+        candidate = " ".join(part for part in collected if part).strip()
+        if candidate:
+            return candidate
+
+    trimmed = text[:280].rsplit(" ", 1)[0].strip() or text[:280].strip()
+    return trimmed.rstrip(",;: ") + "..."
+
+
+@lru_cache(maxsize=1)
+def get_deepseek_client():
+    api_key = os.getenv('DEEPSEEK_API_KEY')
+    if not api_key:
+        return None
+
+    from openai import OpenAI
+
+    return OpenAI(
+        api_key=api_key,
+        base_url="https://api.deepseek.com"
+    )
+
+
+def generate_english_summary(title, summary):
+    """使用 DeepSeek 生成精炼英文摘要。"""
+    client = get_deepseek_client()
+    if client is None:
+        return fallback_english_summary(summary)
+
+    try:
+        prompt = f"""Write a concise English news summary based on the title and content below.
+
+Requirements:
+1. Use 2-3 sentences in natural news English
+2. Include only key facts explicitly stated in the content
+3. Preserve important entities, products, partners, metrics, and timing when relevant
+4. Do not speculate or add opinions
+5. Output summary only
+
+Title: {title}
+
+Content: {(summary or '')[:800]}
+"""
+
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=220,
+            temperature=0.3,
+        )
+        result = (response.choices[0].message.content or "").strip()
+        return fallback_english_summary(result)
+    except Exception as e:
+        print(f"      ⚠️ 英文摘要生成失败: {e}")
+        return fallback_english_summary(summary)
+
+
 def main():
     print("=" * 70)
     print("周报整合系统 - 纯整合模式")
@@ -301,9 +371,9 @@ def main():
         print("⚠️ 邮件未配置，将只生成报告")
     
     if use_ai_summary:
-        print("✓ DeepSeek API 已配置，将生成中文摘要")
+        print("✓ DeepSeek API 已配置，将生成中英文摘要")
     else:
-        print("⚠️ DeepSeek API 未配置，将使用原文")
+        print("⚠️ DeepSeek API 未配置，将使用回退摘要")
     
     # 1. 加载竞品资讯
     print("\n[1/3] 加载竞品资讯...")
@@ -336,7 +406,7 @@ def main():
     
     # 3. 生成中文标题和摘要
     if use_ai_summary:
-        print("\n[3/4] 生成中文标题和摘要...")
+        print("\n[3/5] 生成中文标题和摘要...")
         
         # 竞品资讯
         for i, item in enumerate(competitor_items, 1):
@@ -348,16 +418,33 @@ def main():
             for item in items:
                 print(f"  [行业-{module}] {item.title[:40]}...")
                 item.title, item.summary = generate_chinese_title_summary(item.title, item.summary)
+
+        print("\n[4/5] 生成英文摘要...")
+        english_competitor_items = [item for items in english_competitor_results.values() for item in items]
+        for i, item in enumerate(english_competitor_items, 1):
+            print(f"  [EN {i}/{len(english_competitor_items)}] {item.title[:40]}...")
+            item.summary = generate_english_summary(item.title, item.summary)
+
+        for module, items in english_industry_results.items():
+            for item in items:
+                print(f"  [EN-{module}] {item.title[:40]}...")
+                item.summary = generate_english_summary(item.title, item.summary)
     else:
-        # 截断原文作为摘要
+        # 使用回退摘要
         for item in competitor_items:
             item.summary = item.summary[:200] if item.summary else "无摘要"
         for module, items in industry_results.items():
             for item in items:
                 item.summary = item.summary[:200] if item.summary else "无摘要"
+        for items in english_competitor_results.values():
+            for item in items:
+                item.summary = fallback_english_summary(item.summary)
+        for items in english_industry_results.values():
+            for item in items:
+                item.summary = fallback_english_summary(item.summary)
     
     # 4. 生成 HTML 报告
-    print("\n[4/4] 生成 HTML 报告...")
+    print("\n[5/5] 生成 HTML 报告...")
     try:
         bilingual_outputs = save_bilingual_report_outputs(
             competitor_results,
