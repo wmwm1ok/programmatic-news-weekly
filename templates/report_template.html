@@ -97,6 +97,30 @@
             color: var(--text-secondary);
         }
 
+        .language-switcher {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+        }
+
+        .language-switcher a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid rgba(22, 119, 255, 0.15);
+            color: var(--brand);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .language-switcher a:hover {
+            text-decoration: underline;
+        }
+
         .report-section {
             margin-top: clamp(28px, 4vw, 40px);
         }
@@ -376,18 +400,19 @@
 <body>
     <div class="container">
         <header class="page-header">
+            <div class="language-switcher">{{LANGUAGE_SWITCHER_HTML}}</div>
             <p class="date-range">{{START_DATE}} ~ {{END_DATE}}</p>
-            <h1>程序化广告竞品及行业资讯</h1>
+            <h1>{{MAIN_HEADING}}</h1>
         </header>
 
         <section class="report-section">
-            <h2>一、竞品资讯</h2>
+            <h2>{{COMPETITOR_SECTION_TITLE}}</h2>
             <div class="table-wrapper">
                 <table class="competitor-table">
                     <thead>
                         <tr>
-                            <th style="width: 140px;">公司</th>
-                            <th>内容</th>
+                            <th style="width: 140px;">{{COMPANY_COLUMN_TITLE}}</th>
+                            <th>{{CONTENT_COLUMN_TITLE}}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -398,7 +423,7 @@
         </section>
 
         <section class="report-section">
-            <h2>二、行业资讯</h2>
+            <h2>{{INDUSTRY_SECTION_TITLE}}</h2>
             <div class="industry-section">
             
                 <!-- AdExchanger Popular -->
@@ -417,7 +442,7 @@
         </section>
         
         <div class="footer">
-            本报告由自动化系统生成 · {{GENERATED_AT}}
+            {{FOOTER_TEXT}} · {{GENERATED_AT}}
         </div>
     </div>
 </body>

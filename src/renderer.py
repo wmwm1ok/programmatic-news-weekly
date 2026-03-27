@@ -64,6 +64,7 @@ class HTMLRenderer:
                start_date: str, end_date: str) -> str:
         """渲染 HTML 报告"""
         html = self.template
+        labels = self._html_labels()
 
         html = html.replace("{{START_DATE}}", start_date)
         html = html.replace("{{END_DATE}}", end_date)
@@ -74,6 +75,8 @@ class HTMLRenderer:
             REPORT_DESCRIPTION if self.language == "zh" else EN_REPORT_DESCRIPTION,
         )
         html = html.replace("{{REPORT_COVER_URL}}", REPORT_COVER_URL)
+        for key, value in labels.items():
+            html = html.replace(f"{{{{{key}}}}}", value)
 
         competitor_html = self._render_competitor_section(competitor_items)
         html = html.replace("{{COMPETITOR_SECTION_HTML}}", competitor_html)
@@ -83,6 +86,27 @@ class HTMLRenderer:
             html = html.replace(f"{{{{{key}}}}}", value)
 
         return html
+
+    def _html_labels(self) -> Dict[str, str]:
+        if self.language == "zh":
+            return {
+                "LANGUAGE_SWITCHER_HTML": '<a href="/programmatic-news-weekly/en/">English</a>',
+                "MAIN_HEADING": REPORT_NAME,
+                "COMPETITOR_SECTION_TITLE": "一、竞品资讯",
+                "COMPANY_COLUMN_TITLE": "公司",
+                "CONTENT_COLUMN_TITLE": "内容",
+                "INDUSTRY_SECTION_TITLE": "二、行业资讯",
+                "FOOTER_TEXT": "本报告由自动化系统生成",
+            }
+        return {
+            "LANGUAGE_SWITCHER_HTML": '<a href="/programmatic-news-weekly/">中文</a>',
+            "MAIN_HEADING": EN_REPORT_NAME,
+            "COMPETITOR_SECTION_TITLE": "Competitor News",
+            "COMPANY_COLUMN_TITLE": "Company",
+            "CONTENT_COLUMN_TITLE": "Coverage",
+            "INDUSTRY_SECTION_TITLE": "Industry News",
+            "FOOTER_TEXT": "Automatically generated",
+        }
 
     def _render_competitor_section(self, items: Dict[str, List[ContentItem]]) -> str:
         rows = []
