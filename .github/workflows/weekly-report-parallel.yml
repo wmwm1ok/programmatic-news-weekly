@@ -20,7 +20,7 @@ permissions:
   id-token: write
 
 jobs:
-  # 阶段1：并行抓取所有13家公司 + 行业资讯
+  # 阶段1：并行抓取所有14家公司 + 行业资讯
   fetch-applovin:
     uses: ./.github/workflows/fetch-single.yml
     with:
@@ -80,6 +80,12 @@ jobs:
     with:
       company: TTD
     secrets: inherit
+
+  fetch-topon:
+    uses: ./.github/workflows/fetch-single.yml
+    with:
+      company: TopOn
+    secrets: inherit
   
   fetch-unity:
     uses: ./.github/workflows/fetch-single.yml
@@ -107,7 +113,7 @@ jobs:
   generate-report:
     needs: [fetch-applovin, fetch-bigo, fetch-criteo, fetch-magnite, 
             fetch-mobvista, fetch-moloco, fetch-pubmatic, fetch-taboola,
-            fetch-teads, fetch-ttd, fetch-unity, fetch-viant, fetch-zeta,
+            fetch-teads, fetch-ttd, fetch-topon, fetch-unity, fetch-viant, fetch-zeta,
             fetch-industry]
     if: always()  # 即使前面有失败也运行
     runs-on: ubuntu-latest

@@ -40,7 +40,7 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           mkdir -p output
-          # 完整的公司名到脚本名映射（所有13家公司）
+          # 完整的公司名到脚本名映射（所有14家公司）
           declare -A COMPANY_MAP=(
             ["AppLovin"]="applovin"
             ["BIGO Ads"]="bigo_ads"
@@ -49,6 +49,7 @@ jobs:
             ["mobvista"]="mobvista"
             ["Moloco"]="moloco"
             ["PubMatic"]="pubmatic"
+            ["TopOn"]="topon"
             ["Taboola"]="taboola"
             ["Teads"]="teads"
             ["TTD"]="ttd"

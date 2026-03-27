@@ -16,7 +16,7 @@ from config.settings import OUTPUT_CONFIG
 
 
 REPORT_NAME = "程序化广告竞品及行业资讯"
-REPORT_DESCRIPTION = "程序化广告竞品及行业资讯汇总，涵盖 13 家竞品与重点行业动态。"
+REPORT_DESCRIPTION = "程序化广告竞品及行业资讯汇总，涵盖 14 家竞品与重点行业动态。"
 EN_REPORT_NAME = "Programmatic Advertising Competitor and Industry News"
 EN_REPORT_DESCRIPTION = "A weekly roundup of programmatic advertising competitor moves and key industry developments."
 REPORT_COVER_URL = "https://wmwm1ok.github.io/programmatic-news-weekly/assets/programmatic-news-cover.jpg"

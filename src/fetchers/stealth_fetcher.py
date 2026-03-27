@@ -117,7 +117,9 @@ class StealthFetcher:
             return None
         date_str = date_str.strip()
         patterns = [
+            (r"(\d{4})-(\d{1,2})-(\d{1,2})[ T]\d{1,2}:\d{2}:\d{2}", lambda m: f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"),
             (r"(\d{4})-(\d{1,2})-(\d{1,2})", lambda m: f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"),
+            (r"(\d{4})[./](\d{1,2})[./](\d{1,2})", lambda m: f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"),
             (r"(\d{1,2})/(\d{1,2})/(\d{4})", lambda m: f"{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}"),
             (r"(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})", 
              lambda m: f"{m.group(3)}-{self._month_abbr_to_num(m.group(2)):02d}-{int(m.group(1)):02d}"),
@@ -301,6 +303,18 @@ class StealthFetcher:
 
         soup = BeautifulSoup(html_text, "html.parser")
 
+        for pattern in [
+            r'"datePublished"\s*:\s*"([^"]+)"',
+            r'"dateModified"\s*:\s*"([^"]+)"',
+            r'"createTime"\s*:\s*"([^"]+)"',
+            r'"publishTime"\s*:\s*"([^"]+)"',
+        ]:
+            match = re.search(pattern, html_text, re.IGNORECASE)
+            if match:
+                parsed = self.parse_date(match.group(1))
+                if parsed:
+                    return parsed
+
         for tag in soup.find_all("meta"):
             for attr_name in ("property", "name", "itemprop"):
                 attr_value = (tag.get(attr_name) or "").lower()
@@ -326,6 +340,11 @@ class StealthFetcher:
             parsed = self.parse_date(elem.get_text(" ", strip=True))
             if parsed:
                 return parsed
+
+        full_text = soup.get_text(" ", strip=True)
+        parsed = self.parse_date(full_text)
+        if parsed:
+            return parsed
 
         return self._extract_date_from_url(url)
 
@@ -433,6 +452,7 @@ class StealthFetcher:
             "PubMatic": {"investors.pubmatic.com", "pubmatic.com"},
             "Magnite": {"investor.magnite.com", "magnite.com"},
             "AppLovin": {"investors.applovin.com", "applovin.com"},
+            "TopOn": {"toponad.net", "www.toponad.net", "toponad.com", "www.toponad.com"},
             "Zeta Global": {"investors.zetaglobal.com", "zetaglobal.com"},
         }
         domains.update(extra_domains.get(company_key, set()))
@@ -461,6 +481,7 @@ class StealthFetcher:
             "mobvista": [r"\bmobvista\b", r"\bmintegral\b"],
             "Moloco": [r"\bmoloco\b"],
             "BIGO Ads": [r"\bbigo ads\b", r"\bbigo\b"],
+            "TopOn": [r"\btopon\b", r"\btopon ad\b", r"\btoponad\b"],
             "Unity": [r"\bunity\b", r"\bunity ads\b", r"\bunity software\b", r"\bironsource\b", r"\blevelplay\b", r"\bsupersonic\b", r"\bunity vector\b"],
             "Viant Technology": [r"\bviant technology\b", r"\bviant\b"],
             "Zeta Global": [r"\bzeta global\b", r"\bzeta\b"],
@@ -515,6 +536,7 @@ class StealthFetcher:
             "Teads": ["connected tv", "creative", "branding"],
             "Moloco": ["retail media", "commerce media", "machine learning"],
             "BIGO Ads": ["user acquisition", "mobile marketing"],
+            "TopOn": ["mediation", "monetization", "ad network", "ad revenue", "mobile ads"],
         }
         return any(keyword in title_lower for keyword in company_specific.get(company_key, []))
 
@@ -542,6 +564,13 @@ class StealthFetcher:
                 "facelift", "bhp", "specs", "variant", "showroom", "mpv",
             ]
             return any(keyword in haystack for keyword in magnite_off_topic)
+
+        if company_key == "TopOn":
+            topon_off_topic = [
+                "top on", "top 10", "topone", "toponym", "toponic", "topon score",
+                "rankings", "leaderboard", "best of", "top online",
+            ]
+            return any(keyword in haystack for keyword in topon_off_topic)
 
         return False
 
@@ -807,6 +836,7 @@ class StealthFetcher:
             "Zeta Global": ['"Zeta Global"', 'Zeta Global marketing', 'Zeta Global advertising'],
             "PubMatic": ['PubMatic', 'PubMatic advertising', 'PubMatic ad tech'],
             "Magnite": ['"Magnite" advertising', '"Magnite" CTV', '"Magnite" ad tech'],
+            "TopOn": ['"TopOn" mediation', '"TopOn" monetization', '"TopOn" ad platform'],
         }
         queries = query_map.get(company_key, [f'"{source_name}"'])
         existing_items = existing_items or []
@@ -838,6 +868,7 @@ class StealthFetcher:
             "mobvista": self.fetch_mobvista,
             "Moloco": self.fetch_moloco,
             "BIGO Ads": self.fetch_bigo_ads,
+            "TopOn": self.fetch_topon,
             "Unity": self._fetch_unity_official,
             "Viant Technology": self._fetch_viant_official,
             "Zeta Global": self.fetch_zeta,
@@ -1370,149 +1401,151 @@ class StealthFetcher:
         return items
     
     def fetch_bigo_ads(self, window_start: datetime, window_end: datetime) -> List[ContentItem]:
-        """抓取 BIGO Ads - 从 blog 列表页获取链接，进入详情页提取日期
-        日期格式: "2026-02-03" (在 span 标签中)
-        """
-        items = []
-        url = COMPETITOR_SOURCES["BIGO Ads"]["url"]
+        """抓取 BIGO Ads - 优先官网详情页，官网不足时由统一第三方兜底补齐。"""
         print("  [Stealth] 抓取 BIGO Ads...")
-        
-        if not self._init_browser():
-            return items
-        
-        page = self.context.new_page()
-        processed_urls = set()
-        
-        try:
-            # 访问列表页
-            page.goto(url, wait_until="load", timeout=120000)
-            page.wait_for_timeout(5000)
-            
-            html = page.content()
-            soup = BeautifulSoup(html, 'html.parser')
-            
-            # 查找博客链接
-            blog_links = soup.find_all('a', href=re.compile('/resources/blog/\\d+'))
-            print(f"    找到 {len(blog_links)} 个博客链接")
-            
-            # 去重并只取前3个
-            seen_urls = set()
-            unique_links = []
-            for link in blog_links:
-                href = link.get('href', '')
-                if href and href not in seen_urls:
-                    seen_urls.add(href)
-                    unique_links.append(href)
-            
-            print(f"    去重后: {len(unique_links)} 个，检查前3个")
-            
-            for i, href in enumerate(unique_links[:3]):
-                try:
-                    detail_url = urljoin(url, href)
-                    
-                    # 去重检查
-                    if detail_url in processed_urls:
-                        continue
-                    processed_urls.add(detail_url)
-                    
-                    print(f"\n    [{i+1}] 访问: {href}")
-                    
-                    # 进入详情页
-                    detail_page = self.context.new_page()
-                    try:
-                        detail_page.goto(detail_url, wait_until="domcontentloaded", timeout=30000)
-                        detail_page.wait_for_timeout(3000)
-                        
-                        detail_html = detail_page.content()
-                        detail_soup = BeautifulSoup(detail_html, 'html.parser')
-                        
-                        # 获取标题
-                        title = ""
-                        h1 = detail_soup.find('h1')
-                        if h1:
-                            title = self.clean_text(h1.get_text())
-                        else:
-                            title_elem = detail_soup.find('title')
-                            if title_elem:
-                                title = title_elem.get_text(strip=True).replace(' - BIGO Ads', '')
-                        
-                        if not title:
-                            detail_page.close()
-                            continue
-                        
-                        # 获取日期 - 查找 YYYY-MM-DD 格式
-                        date_str = ""
-                        for elem in detail_soup.find_all(['span', 'time', 'div']):
-                            text = elem.get_text(strip=True)
-                            match = re.match(r'(\d{4})-(\d{2})-(\d{2})', text)
-                            if match:
-                                date_str = text
-                                break
-                        
-                        if not date_str:
-                            detail_page.close()
-                            continue
-                        
-                        print(f"        标题: {title[:50]}...")
-                        print(f"        日期: {date_str}", end="")
-                        
-                        # 检查日期窗口
-                        if not self.is_in_date_window(date_str, window_start, window_end):
-                            print(f" - 不在窗口")
-                            detail_page.close()
-                            continue
-                        
-                        print(f" ✅ 在窗口内")
-                        
-                        # 获取内容
-                        content = ""
-                        for selector in ['article', '.content', 'main', '.blog-content']:
-                            elem = detail_soup.select_one(selector)
-                            if elem:
-                                text = elem.get_text(separator=' ', strip=True)
-                                if len(text) > 200:
-                                    content = self.clean_text(text)
-                                    break
-                        
-                        if not content:
-                            for script in detail_soup(["script", "style", "nav", "header"]):
-                                script.decompose()
-                            body = detail_soup.find('body')
-                            if body:
-                                content = self.clean_text(body.get_text(separator=' ', strip=True))
-                        
-                        if content:
-                            items.append(ContentItem(
-                                title=title,
-                                summary=content[:600],
-                                date=date_str,
-                                url=detail_url,
-                                source="BIGO Ads"
-                            ))
-                            print(f"        ✓ 已添加")
-                        else:
-                            print(f"        ✗ 无法提取内容")
-                        
-                        detail_page.close()
-                        
-                    except Exception as e:
-                        print(f"        ✗ 详情页错误: {e}")
-                        try:
-                            detail_page.close()
-                        except:
-                            pass
-                        continue
-                        
-                except Exception as e:
+        url = COMPETITOR_SOURCES["BIGO Ads"]["url"]
+        items: List[ContentItem] = []
+        candidate_urls = []
+        seen_candidate_urls = set()
+
+        def collect_candidate_links(html_text: str):
+            if not html_text:
+                return
+            soup = BeautifulSoup(html_text, 'html.parser')
+            hrefs = {link.get('href', '') for link in soup.find_all('a', href=True)}
+            hrefs.update(re.findall(r'/resources/blog/\d+', html_text))
+            for href in hrefs:
+                if not href or '/resources/blog/' not in href or href == '/resources/blog':
                     continue
-                    
-        except Exception as e:
-            print(f"    ✗ BIGO Ads 错误: {e}")
-        finally:
-            page.close()
-        
-        print(f"\n    BIGO Ads: {len(items)} 条")
-        return items
+                detail_url = urljoin(url, href.split("?", 1)[0])
+                if detail_url in seen_candidate_urls:
+                    continue
+                seen_candidate_urls.add(detail_url)
+                candidate_urls.append(detail_url)
+
+        html = self._fetch_html_with_fallback(url, timeout=30)
+        collect_candidate_links(html)
+
+        if not candidate_urls and self._init_browser():
+            page = self.context.new_page()
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=120000)
+                page.wait_for_timeout(5000)
+                collect_candidate_links(page.content())
+            except Exception as e:
+                print(f"    - BIGO 官网渲染抓取失败: {e}")
+            finally:
+                page.close()
+
+        print(f"    BIGO 候选详情页: {len(candidate_urls)} 个")
+
+        for detail_url in candidate_urls[:12]:
+            detail_html = self._fetch_html_with_fallback(detail_url, timeout=30, referer=url) or self.fetch_page(detail_url, timeout=60000)
+            if not detail_html:
+                continue
+
+            detail_soup = BeautifulSoup(detail_html, 'html.parser')
+            title_elem = detail_soup.find('h1') or detail_soup.find('title')
+            title = self.clean_text(title_elem.get_text(" ", strip=True)) if title_elem else ""
+            title = title.replace(' - BIGO Ads', '')
+            if not title or self._is_not_main_subject(title, 'BIGO Ads'):
+                continue
+
+            detail_date = self._parse_date_from_html(detail_html, detail_url)
+            if not detail_date or not self.is_in_date_window(detail_date, window_start, window_end):
+                continue
+
+            content = ""
+            for selector in ['article', 'main', '.content', '.blog-content', '.article-content']:
+                elem = detail_soup.select_one(selector)
+                if not elem:
+                    continue
+                for script in elem.find_all(['script', 'style']):
+                    script.decompose()
+                text = self.clean_text(elem.get_text(" ", strip=True))
+                if len(text) > 100:
+                    content = text
+                    break
+
+            items.append(ContentItem(
+                title=title,
+                summary=(content or title)[:600],
+                date=detail_date,
+                url=detail_url,
+                source="BIGO Ads"
+            ))
+            if len(items) >= 3:
+                break
+
+        print(f"    BIGO Ads: {len(items)} 条")
+        return self._sort_and_limit_items(items, limit=2)
+
+    def fetch_topon(self, window_start: datetime, window_end: datetime) -> List[ContentItem]:
+        """抓取 TopOn 官网 posts 列表。"""
+        print("  [Stealth] 抓取 TopOn...")
+        url = COMPETITOR_SOURCES["TopOn"]["url"]
+        html = self._fetch_html_with_fallback(url, timeout=30) or self.fetch_page(url, timeout=60000)
+        if not html:
+            return []
+
+        soup = BeautifulSoup(html, 'html.parser')
+        items: List[ContentItem] = []
+        seen_urls = set()
+
+        for link in soup.find_all('a', href=re.compile(r'/en/posts/\d+\.html')):
+            detail_url = link.get('href', '')
+            if not detail_url:
+                continue
+            detail_url = urljoin(url, detail_url)
+            if detail_url in seen_urls:
+                continue
+            seen_urls.add(detail_url)
+
+            title = self.clean_text(link.get_text(" ", strip=True))
+            if not title or self._is_not_main_subject(title, 'TopOn'):
+                continue
+
+            detail_html = self._fetch_html_with_fallback(detail_url, timeout=30, referer=url) or self.fetch_page(detail_url, timeout=60000)
+            if not detail_html:
+                continue
+
+            detail_soup = BeautifulSoup(detail_html, 'html.parser')
+            h1 = detail_soup.find('h1')
+            if h1:
+                title = self.clean_text(h1.get_text(" ", strip=True))
+            if not title or self._is_not_main_subject(title, 'TopOn'):
+                continue
+
+            info_elem = detail_soup.select_one('.blog__post-info')
+            date_str = self.parse_date(info_elem.get_text(" ", strip=True)) if info_elem else ""
+            if not date_str:
+                date_str = self._parse_date_from_html(detail_html, detail_url)
+            if not date_str or not self.is_in_date_window(date_str, window_start, window_end):
+                continue
+
+            content = ""
+            for selector in ['article', 'main', '.blog-detail', '.post-detail', '.content']:
+                elem = detail_soup.select_one(selector)
+                if not elem:
+                    continue
+                for script in elem.find_all(['script', 'style']):
+                    script.decompose()
+                text = self.clean_text(elem.get_text(" ", strip=True))
+                if len(text) > 100:
+                    content = text
+                    break
+            items.append(ContentItem(
+                title=title,
+                summary=(content or title)[:600],
+                date=date_str,
+                url=detail_url,
+                source="TopOn"
+            ))
+            if len(items) >= 3:
+                break
+
+        print(f"    TopOn: {len(items)} 条")
+        return self._sort_and_limit_items(items, limit=2)
     
     def fetch_moloco(self, window_start: datetime, window_end: datetime) -> List[ContentItem]:
         """抓取 Moloco - 从 newsroom 页面获取 press-releases 链接
