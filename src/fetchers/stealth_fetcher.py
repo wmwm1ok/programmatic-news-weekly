@@ -2084,7 +2084,12 @@ class StealthFetcher:
                         publisher_url,
                     )
                     if not self._has_resolved_third_party_article(resolved_url, resolved_date):
-                        print(f"    - 丢弃第三方稿(未解析到真实日期): {article_title[:80]}...")
+                        if not resolved_url:
+                            print(f"    - 丢弃第三方稿(未解析到真实链接): {article_title[:80]}...")
+                        elif not resolved_date:
+                            print(f"    - 丢弃第三方稿(未解析到真实日期): {article_title[:80]}...")
+                        else:
+                            print(f"    - 丢弃第三方稿(真实落地页无效): {article_title[:80]}...")
                         continue
 
                     date_str = resolved_date
