@@ -1,7 +1,7 @@
 # 这个文件是模板，用于生成各个公司的独立抓取工作流
 # 实际文件需要复制到各 -only 分支
 
-name: Fetch {{COMPANY_NAME}}
+name: "Fetch {{COMPANY_NAME}}"
 
 on:
   # 被主工作流调用
@@ -36,7 +36,7 @@ jobs:
           pip install playwright
           playwright install chromium
       
-      - name: Fetch {{COMPANY_NAME}} only
+      - name: "Fetch {{COMPANY_NAME}} only"
         id: fetch
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -48,6 +48,6 @@ jobs:
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
-          name: {{COMPANY_KEY}}-result
-          path: output/{{COMPANY_KEY}}_result.json
+          name: "{{COMPANY_KEY}}-result"
+          path: "output/{{COMPANY_KEY}}_result.json"
           retention-days: 1
