@@ -44,15 +44,31 @@ def normalize_company_items(items, limit=2):
     return sorted(items, key=lambda item: (item.date or "", item.title), reverse=True)[:limit]
 
 
-def _refresh_company_items(company_key, current_items, window_start, window_end, target_count, previous_signatures):
+def _refresh_company_items(
+    company_key,
+    current_items,
+    window_start,
+    window_end,
+    target_count,
+    previous_signatures,
+    backfill_mode="missing_only",
+):
     """并行补抓单家公司，返回标准化后的结果。"""
     items = normalize_company_items(current_items, limit=target_count)
-    if len(items) >= target_count:
+
+    should_backfill = False
+    if backfill_mode == "always_fill":
+        should_backfill = len(items) < target_count
+    else:
+        should_backfill = len(items) == 0
+
+    if not should_backfill:
         return items
 
     fetcher = StealthFetcher()
     try:
-        print(f"  ↺ {company_display_name(company_key)} 当前 {len(items)} 条，尝试补足到 {target_count} 条")
+        reason = "缺失" if len(items) == 0 else f"仅有 {len(items)} 条"
+        print(f"  ↺ {company_display_name(company_key)} 当前{reason}，执行兜底补抓")
         refreshed_items = fetcher.sanitize_company_items(
             company_key,
             fetcher.fetch_company(company_key, window_start, window_end),
@@ -108,8 +124,15 @@ def load_company_results():
         sanitizer.close()
 
 
-def ensure_company_coverage(results, window_start, window_end, target_count=2, previous_signatures=None):
-    """确保最终报告中的公司顺序固定，并尽量为每家公司补足到 2 条。"""
+def ensure_company_coverage(
+    results,
+    window_start,
+    window_end,
+    target_count=2,
+    previous_signatures=None,
+    backfill_mode="missing_only",
+):
+    """确保最终报告中的公司顺序固定，并只在必要时执行兜底补抓。"""
     previous_signatures = previous_signatures or set()
     ordered_results = OrderedDict()
     parallel_results = {}
@@ -125,6 +148,7 @@ def ensure_company_coverage(results, window_start, window_end, target_count=2, p
                 window_end,
                 target_count,
                 previous_signatures,
+                backfill_mode,
             ): company_key
             for company_key in COMPETITOR_SOURCES.keys()
         }
@@ -295,6 +319,7 @@ def main():
         window_end,
         target_count=2,
         previous_signatures=previous_signatures,
+        backfill_mode=os.getenv("REPORT_BACKFILL_MODE", "missing_only"),
     )
     competitor_items = []
     for company, items in competitor_results.items():
