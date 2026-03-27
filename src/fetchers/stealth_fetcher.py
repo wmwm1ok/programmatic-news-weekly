@@ -367,16 +367,66 @@ class StealthFetcher:
         except Exception:
             return article_url, ""
 
-    def _has_resolved_third_party_article(self, resolved_url: str, resolved_date: str) -> bool:
-        """第三方兜底稿件必须解析出真实落地页和真实日期。"""
-        if not resolved_url or not resolved_date:
+    def _has_resolved_third_party_article(self, resolved_url: str) -> bool:
+        """第三方兜底稿件至少必须解析出真实落地页。"""
+        if not resolved_url:
             return False
-
         domain = self._normalize_domain(resolved_url)
         if not domain or "google." in domain:
             return False
-
         return True
+
+    def _supports_source_date_fallback(
+        self,
+        publisher: str,
+        publisher_url: str,
+        resolved_url: str,
+    ) -> bool:
+        """对白名单媒体，允许在真实链接已解析成功时回退到来源日期。"""
+        trusted_domains = {
+            "adexchanger.com",
+            "adweek.com",
+            "digiday.com",
+            "exchangewire.com",
+            "marketingdive.com",
+            "martech.org",
+            "mediapost.com",
+            "msn.com",
+            "searchengineland.com",
+            "thecurrent.com",
+            "yahoo.com",
+            "finance.yahoo.com",
+            "zacks.com",
+        }
+        trusted_publishers = {
+            "adexchanger",
+            "adweek",
+            "digiday",
+            "exchangewire",
+            "marketing dive",
+            "martech",
+            "mediapost",
+            "msn",
+            "search engine land",
+            "the current",
+            "yahoo",
+            "zacks",
+        }
+
+        domains = {
+            self._normalize_domain(publisher_url),
+            self._normalize_domain(resolved_url),
+        }
+        domains = {domain for domain in domains if domain}
+        if any(
+            domain == trusted or domain.endswith(f".{trusted}")
+            for domain in domains
+            for trusted in trusted_domains
+        ):
+            return True
+
+        publisher_key = (publisher or "").strip().lower()
+        return publisher_key in trusted_publishers
 
     def _sort_and_limit_items(self, items: List[ContentItem], limit: int = 2) -> List[ContentItem]:
         """去重后按日期倒序排序，并限制条数。"""
@@ -2060,22 +2110,19 @@ class StealthFetcher:
                     if max_candidates and processed_candidates > max_candidates:
                         break
                     
-                    # 解析日期
-                    date_str = None
+                    # 解析来源日期（仅在白名单媒体下作为兜底使用）
+                    source_date = ""
                     if pub_date:
                         try:
                             dt = datetime.strptime(pub_date, '%a, %d %b %Y %H:%M:%S %Z')
-                            date_str = dt.strftime('%Y-%m-%d')
+                            source_date = dt.strftime('%Y-%m-%d')
                         except:
                             # 尝试其他格式
                             date_match = re.search(r'(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})', pub_date)
                             if date_match:
                                 months = {'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
                                          'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'}
-                                date_str = f"{date_match.group(3)}-{months.get(date_match.group(2).lower(), '01')}-{date_match.group(1).zfill(2)}"
-                    
-                    if not date_str:
-                        date_str = window_end.strftime('%Y-%m-%d')
+                                source_date = f"{date_match.group(3)}-{months.get(date_match.group(2).lower(), '01')}-{date_match.group(1).zfill(2)}"
 
                     article_title, _ = self._split_google_news_title(title)
                     resolved_url, resolved_date = self._resolve_third_party_article(
@@ -2083,16 +2130,27 @@ class StealthFetcher:
                         publisher,
                         publisher_url,
                     )
-                    if not self._has_resolved_third_party_article(resolved_url, resolved_date):
+                    if not self._has_resolved_third_party_article(resolved_url):
                         if not resolved_url:
                             print(f"    - 丢弃第三方稿(未解析到真实链接): {article_title[:80]}...")
-                        elif not resolved_date:
-                            print(f"    - 丢弃第三方稿(未解析到真实日期): {article_title[:80]}...")
                         else:
                             print(f"    - 丢弃第三方稿(真实落地页无效): {article_title[:80]}...")
                         continue
 
-                    date_str = resolved_date
+                    effective_date = resolved_date
+                    if not effective_date and source_date and self._supports_source_date_fallback(
+                        publisher,
+                        publisher_url,
+                        resolved_url,
+                    ):
+                        effective_date = source_date
+                        print(f"    ~ 第三方稿回退到来源日期: {article_title[:80]}... ({effective_date})")
+
+                    if not effective_date:
+                        print(f"    - 丢弃第三方稿(未解析到真实日期): {article_title[:80]}...")
+                        continue
+
+                    date_str = effective_date
                     link = resolved_url
                     
                     # 检查日期窗口
