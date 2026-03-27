@@ -286,7 +286,7 @@ class StealthFetcher:
             try:
                 response = requests.get(
                     search_url,
-                    timeout=20,
+                    timeout=8,
                     headers={"User-Agent": "Mozilla/5.0"},
                 )
                 response.raise_for_status()
@@ -356,7 +356,7 @@ class StealthFetcher:
         try:
             response = requests.get(
                 article_url,
-                timeout=20,
+                timeout=10,
                 headers={"User-Agent": "Mozilla/5.0"},
                 allow_redirects=True,
             )
@@ -586,6 +586,30 @@ class StealthFetcher:
         if self._is_not_main_subject(clean_title, company_key):
             return False
         if self._is_stock_or_market_news(clean_title, publisher, item.url):
+            return False
+        if self._is_clearly_off_topic_for_company(company_key, clean_title, publisher):
+            return False
+        if not self._is_adtech_relevant_third_party_title(company_key, clean_title):
+            return False
+        return True
+
+    def _looks_like_promising_third_party_candidate(
+        self,
+        company_key: str,
+        raw_title: str,
+        publisher: str = "",
+    ) -> bool:
+        """在昂贵的真实链接/日期解析前，先用低成本规则排掉明显垃圾结果。"""
+        clean_title, parsed_publisher = self._split_google_news_title(raw_title)
+        publisher = publisher or parsed_publisher
+
+        if not clean_title:
+            return False
+        if not self._contains_company_signal(company_key, clean_title):
+            return False
+        if self._is_not_main_subject(clean_title, company_key):
+            return False
+        if self._is_stock_or_market_news(clean_title, publisher):
             return False
         if self._is_clearly_off_topic_for_company(company_key, clean_title, publisher):
             return False
@@ -846,7 +870,15 @@ class StealthFetcher:
         for query in queries:
             if len(collected) >= needed_count:
                 break
-            items = self._fetch_google_news_rss(query, window_start, window_end, source_name)
+            items = self._fetch_google_news_rss(
+                query,
+                window_start,
+                window_end,
+                source_name,
+                company_key=company_key,
+                max_candidates=max(needed_count * 3, 6),
+                max_items=max(needed_count * 2, 4),
+            )
             items = [item for item in items if self._is_valid_third_party_item(company_key, item)]
 
             filtered_new_items = [
@@ -1962,7 +1994,17 @@ class StealthFetcher:
         
         return unique_items
 
-    def _fetch_google_news_rss(self, query: str, window_start: datetime, window_end: datetime, source_name: str, filter_fn=None) -> List[ContentItem]:
+    def _fetch_google_news_rss(
+        self,
+        query: str,
+        window_start: datetime,
+        window_end: datetime,
+        source_name: str,
+        filter_fn=None,
+        company_key: str = "",
+        max_candidates: int = 8,
+        max_items: int = 4,
+    ) -> List[ContentItem]:
         """使用 Google News RSS 抓取新闻
         
         Args:
@@ -1981,15 +2023,19 @@ class StealthFetcher:
             url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en&gl=US&ceid=US:en"
             print(f"    使用 Google News RSS...")
             
-            resp = requests.get(url, timeout=30, headers={
+            resp = requests.get(url, timeout=10, headers={
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
             })
             resp.raise_for_status()
             
             soup = BeautifulSoup(resp.text, 'xml')
+            processed_candidates = 0
             
             for item_elem in soup.find_all('item'):
                 try:
+                    if max_items and len(items) >= max_items:
+                        break
+
                     title = item_elem.title.get_text() if item_elem.title else ""
                     link = item_elem.link.get_text() if item_elem.link else ""
                     pub_date = item_elem.pubDate.get_text() if item_elem.pubDate else ""
@@ -2002,6 +2048,17 @@ class StealthFetcher:
                     # 应用自定义过滤
                     if filter_fn and not filter_fn(title):
                         continue
+
+                    if company_key and not self._looks_like_promising_third_party_candidate(
+                        company_key,
+                        title,
+                        publisher,
+                    ):
+                        continue
+
+                    processed_candidates += 1
+                    if max_candidates and processed_candidates > max_candidates:
+                        break
                     
                     # 解析日期
                     date_str = None
