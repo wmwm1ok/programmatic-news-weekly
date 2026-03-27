@@ -63,7 +63,13 @@ jobs:
           COMPANY_KEY=${COMPANY_MAP[$COMPANY]:-$COMPANY}
           echo "company_key=${COMPANY_KEY}" >> $GITHUB_OUTPUT
           echo "Running fetch_${COMPANY_KEY}_only.py for ${COMPANY}"
-          python fetch_${COMPANY_KEY}_only.py
+          timeout 10m python fetch_${COMPANY_KEY}_only.py || {
+            status=$?
+            if [ "$status" -eq 124 ]; then
+              echo "Fetch timed out after 10 minutes for ${COMPANY}"
+            fi
+            exit "$status"
+          }
       
       - name: Upload result
         if: ${{ !cancelled() }}

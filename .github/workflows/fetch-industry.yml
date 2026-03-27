@@ -27,7 +27,13 @@ jobs:
         timeout-minutes: 6
         run: |
           mkdir -p output
-          python fetch_industry_only.py
+          timeout 6m python fetch_industry_only.py || {
+            status=$?
+            if [ "$status" -eq 124 ]; then
+              echo "Industry fetch timed out after 6 minutes"
+            fi
+            exit "$status"
+          }
       
       - name: Upload result
         if: ${{ !cancelled() }}
