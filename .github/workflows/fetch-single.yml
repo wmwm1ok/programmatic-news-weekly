@@ -16,7 +16,7 @@ on:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
       
       - name: Fetch ${{ inputs.company }}
         id: fetch
-        timeout-minutes: 10
+        timeout-minutes: 20
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
@@ -63,10 +63,10 @@ jobs:
           COMPANY_KEY=${COMPANY_MAP[$COMPANY]:-$COMPANY}
           echo "company_key=${COMPANY_KEY}" >> $GITHUB_OUTPUT
           echo "Running fetch_${COMPANY_KEY}_only.py for ${COMPANY}"
-          timeout 10m python fetch_${COMPANY_KEY}_only.py || {
+          timeout 20m python fetch_${COMPANY_KEY}_only.py || {
             status=$?
             if [ "$status" -eq 124 ]; then
-              echo "Fetch timed out after 10 minutes for ${COMPANY}"
+              echo "Fetch timed out after 20 minutes for ${COMPANY}"
             fi
             exit "$status"
           }
