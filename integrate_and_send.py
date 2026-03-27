@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
 from collections import OrderedDict
@@ -19,6 +20,7 @@ from fetchers.stealth_fetcher import StealthFetcher
 from renderer import HTMLRenderer, save_report_outputs
 from email_sender import send_weekly_report
 from config.settings import COMPETITOR_SOURCES
+from report_history import filter_competitor_results, filter_historical_duplicates, load_previous_report_signatures
 
 
 COMPANY_DISPLAY_NAMES = {
@@ -40,6 +42,32 @@ def company_display_name(company_key: str) -> str:
 
 def normalize_company_items(items, limit=2):
     return sorted(items, key=lambda item: (item.date or "", item.title), reverse=True)[:limit]
+
+
+def _refresh_company_items(company_key, current_items, window_start, window_end, target_count, previous_signatures):
+    """并行补抓单家公司，返回标准化后的结果。"""
+    items = normalize_company_items(current_items, limit=target_count)
+    if len(items) >= target_count:
+        return items
+
+    fetcher = StealthFetcher()
+    try:
+        print(f"  ↺ {company_display_name(company_key)} 当前 {len(items)} 条，尝试补足到 {target_count} 条")
+        refreshed_items = fetcher.sanitize_company_items(
+            company_key,
+            fetcher.fetch_company(company_key, window_start, window_end),
+            limit=target_count,
+        )
+        refreshed_items = filter_historical_duplicates(refreshed_items, previous_signatures)
+        if refreshed_items:
+            items = refreshed_items
+        print(f"    → {company_display_name(company_key)} 最终 {len(items)} 条")
+        return items
+    except Exception as e:
+        print(f"    ✗ {company_display_name(company_key)} 补抓失败: {e}")
+        return items
+    finally:
+        fetcher.close()
 
 
 def load_company_results():
@@ -80,31 +108,40 @@ def load_company_results():
         sanitizer.close()
 
 
-def ensure_company_coverage(results, window_start, window_end, target_count=2):
+def ensure_company_coverage(results, window_start, window_end, target_count=2, previous_signatures=None):
     """确保最终报告中的公司顺序固定，并尽量为每家公司补足到 2 条。"""
+    previous_signatures = previous_signatures or set()
     ordered_results = OrderedDict()
-    fetcher = StealthFetcher()
+    parallel_results = {}
+    max_workers = max(1, min(4, len(COMPETITOR_SOURCES)))
 
-    try:
-        for company_key in COMPETITOR_SOURCES.keys():
-            items = normalize_company_items(results.get(company_key, []), limit=target_count)
-            if len(items) < target_count:
-                print(f"  ↺ {company_display_name(company_key)} 当前 {len(items)} 条，尝试补足到 {target_count} 条")
-                try:
-                    refreshed_items = fetcher.sanitize_company_items(
-                        company_key,
-                        fetcher.fetch_company(company_key, window_start, window_end),
-                        limit=target_count,
-                    )
-                    if refreshed_items:
-                        items = refreshed_items
-                    print(f"    → {company_display_name(company_key)} 最终 {len(items)} 条")
-                except Exception as e:
-                    print(f"    ✗ {company_display_name(company_key)} 补抓失败: {e}")
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_company = {
+            executor.submit(
+                _refresh_company_items,
+                company_key,
+                results.get(company_key, []),
+                window_start,
+                window_end,
+                target_count,
+                previous_signatures,
+            ): company_key
+            for company_key in COMPETITOR_SOURCES.keys()
+        }
 
-            ordered_results[company_display_name(company_key)] = items
-    finally:
-        fetcher.close()
+        for future in as_completed(future_to_company):
+            company_key = future_to_company[future]
+            try:
+                parallel_results[company_key] = future.result()
+            except Exception as e:
+                print(f"    ✗ {company_display_name(company_key)} 并行补抓失败: {e}")
+                parallel_results[company_key] = normalize_company_items(results.get(company_key, []), limit=target_count)
+
+    for company_key in COMPETITOR_SOURCES.keys():
+        ordered_results[company_display_name(company_key)] = parallel_results.get(
+            company_key,
+            normalize_company_items(results.get(company_key, []), limit=target_count),
+        )
 
     return ordered_results
 
@@ -246,7 +283,19 @@ def main():
     # 1. 加载竞品资讯
     print("\n[1/3] 加载竞品资讯...")
     competitor_results = load_company_results()
-    competitor_results = ensure_company_coverage(competitor_results, window_start, window_end, target_count=2)
+    previous_signatures = load_previous_report_signatures()
+    if previous_signatures:
+        print(f"  检测到上一期已发布内容: {len(previous_signatures)} 条签名")
+        competitor_results = filter_competitor_results(competitor_results, previous_signatures)
+    else:
+        print("  ⚠️ 未能加载上一期报告，跳过跨周去重")
+    competitor_results = ensure_company_coverage(
+        competitor_results,
+        window_start,
+        window_end,
+        target_count=2,
+        previous_signatures=previous_signatures,
+    )
     competitor_items = []
     for company, items in competitor_results.items():
         competitor_items.extend(items)

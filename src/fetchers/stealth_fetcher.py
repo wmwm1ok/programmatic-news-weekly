@@ -3,13 +3,15 @@
 Stealth Playwright 抓取器 - 模拟真人浏览器绕过反爬虫检测
 """
 import json
+import html
 import re
 import subprocess
 import time
 import random
+import requests
 from datetime import datetime
 from typing import List, Dict, Optional
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import parse_qs, quote, unquote, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -240,6 +242,111 @@ class StealthFetcher:
             url=url,
             source=source,
         )
+
+    def _extract_article_url_from_search_html(self, html_text: str, source_domain: str) -> str:
+        if not html_text:
+            return ""
+
+        candidates = re.findall(r'href="([^"]+)"', html_text)
+        for candidate in candidates:
+            decoded = html.unescape(candidate)
+            if "uddg=" in decoded:
+                try:
+                    decoded = unquote(parse_qs(urlparse(decoded).query).get("uddg", [""])[0]) or decoded
+                except Exception:
+                    pass
+            domain = self._normalize_domain(decoded)
+            if not domain or "google." in domain:
+                continue
+            if source_domain and not (domain == source_domain or domain.endswith(f".{source_domain}")):
+                continue
+            return decoded
+        return ""
+
+    def _search_article_url(self, article_title: str, publisher: str, publisher_url: str) -> str:
+        if not article_title:
+            return ""
+
+        source_domain = self._normalize_domain(publisher_url)
+        query_parts = [f'"{article_title}"']
+        if publisher:
+            query_parts.append(f'"{publisher}"')
+        if source_domain:
+            query_parts.append(f"site:{source_domain}")
+        query = quote(" ".join(query_parts))
+
+        search_urls = [
+            f"https://duckduckgo.com/html/?q={query}",
+            f"https://www.bing.com/search?q={query}",
+        ]
+
+        for search_url in search_urls:
+            try:
+                response = requests.get(
+                    search_url,
+                    timeout=20,
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                response.raise_for_status()
+                article_url = self._extract_article_url_from_search_html(response.text, source_domain)
+                if article_url:
+                    return article_url
+            except Exception:
+                continue
+        return ""
+
+    def _parse_date_from_html(self, html_text: str, url: str) -> str:
+        if not html_text:
+            return ""
+
+        soup = BeautifulSoup(html_text, "html.parser")
+
+        for tag in soup.find_all("meta"):
+            for attr_name in ("property", "name", "itemprop"):
+                attr_value = (tag.get(attr_name) or "").lower()
+                if attr_value in {
+                    "article:published_time",
+                    "og:published_time",
+                    "publish-date",
+                    "published_date",
+                    "datepublished",
+                }:
+                    parsed = self.parse_date(tag.get("content", ""))
+                    if parsed:
+                        return parsed
+
+        time_tag = soup.find("time")
+        if time_tag:
+            for candidate in [time_tag.get("datetime", ""), time_tag.get_text(" ", strip=True)]:
+                parsed = self.parse_date(candidate)
+                if parsed:
+                    return parsed
+
+        for elem in soup.find_all(["span", "div", "p"], class_=re.compile("date|time|published", re.I)):
+            parsed = self.parse_date(elem.get_text(" ", strip=True))
+            if parsed:
+                return parsed
+
+        return self._extract_date_from_url(url)
+
+    def _resolve_third_party_article(self, article_title: str, publisher: str, publisher_url: str) -> tuple:
+        article_url = self._search_article_url(article_title, publisher, publisher_url)
+        if not article_url:
+            return "", ""
+
+        try:
+            response = requests.get(
+                article_url,
+                timeout=20,
+                headers={"User-Agent": "Mozilla/5.0"},
+                allow_redirects=True,
+            )
+            response.raise_for_status()
+            resolved_url = response.url or article_url
+            resolved_date = self._parse_date_from_html(response.text, resolved_url)
+            return resolved_url, resolved_date
+        except Exception:
+            return article_url, ""
 
     def _sort_and_limit_items(self, items: List[ContentItem], limit: int = 2) -> List[ContentItem]:
         """去重后按日期倒序排序，并限制条数。"""
@@ -1833,6 +1940,8 @@ class StealthFetcher:
                     title = item_elem.title.get_text() if item_elem.title else ""
                     link = item_elem.link.get_text() if item_elem.link else ""
                     pub_date = item_elem.pubDate.get_text() if item_elem.pubDate else ""
+                    publisher = item_elem.source.get_text() if item_elem.source else ""
+                    publisher_url = item_elem.source.get("url", "") if item_elem.source else ""
                     
                     if not title or not link:
                         continue
@@ -1857,6 +1966,17 @@ class StealthFetcher:
                     
                     if not date_str:
                         date_str = window_end.strftime('%Y-%m-%d')
+
+                    article_title, _ = self._split_google_news_title(title)
+                    resolved_url, resolved_date = self._resolve_third_party_article(
+                        article_title,
+                        publisher,
+                        publisher_url,
+                    )
+                    if resolved_date:
+                        date_str = resolved_date
+                    if resolved_url:
+                        link = resolved_url
                     
                     # 检查日期窗口
                     if not self.is_in_date_window(date_str, window_start, window_end):
@@ -1866,7 +1986,7 @@ class StealthFetcher:
                     content = self.clean_text(title)
                     
                     items.append(ContentItem(
-                        title=self.clean_text(title),
+                        title=self.clean_text(article_title or title),
                         summary=content[:600],
                         date=date_str,
                         url=link,
