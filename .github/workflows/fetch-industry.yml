@@ -6,6 +6,7 @@ on:
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,11 +24,13 @@ jobs:
           playwright install chromium
       
       - name: Fetch industry news
+        timeout-minutes: 6
         run: |
           mkdir -p output
           python fetch_industry_only.py
       
       - name: Upload result
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: industry-result

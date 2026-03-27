@@ -16,6 +16,7 @@ on:
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,6 +37,7 @@ jobs:
       
       - name: Fetch ${{ inputs.company }}
         id: fetch
+        timeout-minutes: 10
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
@@ -64,6 +66,7 @@ jobs:
           python fetch_${COMPANY_KEY}_only.py
       
       - name: Upload result
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.company }}-result
