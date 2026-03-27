@@ -1,7 +1,7 @@
 # 这个文件是模板，用于生成各个公司的独立抓取工作流
-# 实际文件需要复制到各 -only 分支
+# 放在 .github/templates 下，避免被 GitHub 当作正式工作流校验
 
-name: Fetch {{COMPANY_NAME}}
+name: "Fetch {{COMPANY_NAME}}"
 
 on:
   # 被主工作流调用
@@ -10,7 +10,7 @@ on:
       result:
         description: "抓取结果JSON"
         value: ${{ jobs.fetch.outputs.result }}
-  
+
   # 手动触发（调试用）
   workflow_dispatch:
 
@@ -19,24 +19,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.fetch.outputs.result }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install playwright
-          playwright install chromium
-      
-      - name: Fetch {{COMPANY_NAME}} only
+
+      - name: "Fetch {{COMPANY_NAME}} only"
         id: fetch
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -44,10 +37,10 @@ jobs:
           python fetch_{{COMPANY_KEY}}_only.py
           # 输出结果到 GitHub outputs
           echo "result=$(cat output/{{COMPANY_KEY}}_result.json)" >> $GITHUB_OUTPUT
-      
+
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
-          name: {{COMPANY_KEY}}-result
-          path: output/{{COMPANY_KEY}}_result.json
+          name: "{{COMPANY_KEY}}-result"
+          path: "output/{{COMPANY_KEY}}_result.json"
           retention-days: 1

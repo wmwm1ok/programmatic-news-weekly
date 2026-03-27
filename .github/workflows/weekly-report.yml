@@ -1,7 +1,7 @@
-name: Weekly Report Automation
+name: Deprecated - Weekly Report Automation
 
 on:
-  # 仅保留手动触发。定时任务统一由并行版 workflow 负责。
+  # 仅保留手动触发。正式发布与定时任务统一使用 Weekly Report - Parallel。
   workflow_dispatch:
 
 env:
@@ -47,7 +47,7 @@ jobs:
           python run_weekly_report.py
       
       - name: Upload report artifact
-        if: always()
+        if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: weekly-report-${{ github.run_id }}

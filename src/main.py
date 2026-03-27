@@ -21,6 +21,7 @@ from summarizer import Summarizer, MockSummarizer
 from validator import Validator, ValidationError
 from renderer import HTMLRenderer, save_report_outputs
 from mailer import Mailer, MockMailer
+from report_history import filter_competitor_results, load_previous_report_signatures
 
 
 def main(run_date: datetime = None, test_mode: bool = False, dry_run: bool = False) -> dict:
@@ -74,6 +75,9 @@ def main(run_date: datetime = None, test_mode: bool = False, dry_run: bool = Fal
     # 3. 抓取竞品资讯
     try:
         competitor_items = competitor_fetcher.fetch_all(window_start, window_end)
+        previous_signatures = load_previous_report_signatures()
+        if previous_signatures:
+            competitor_items = filter_competitor_results(competitor_items, previous_signatures)
         total_competitor = sum(len(items) for items in competitor_items.values())
         print(f"\n  抓取完成，共 {len(competitor_items)} 家公司，{total_competitor} 条内容")
         for company, items in competitor_items.items():

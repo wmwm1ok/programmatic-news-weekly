@@ -1,5 +1,10 @@
 name: Weekly Report - Parallel
 
+# 正式发布入口：
+# 1. 定时周报使用本工作流
+# 2. 手动发布周报也优先使用本工作流
+# 3. 旧版 weekly-report.yml 仅保留兼容/调试用途
+
 on:
   # 定时触发：北京时间每周一早上 06:13
   # UTC 周日 22:13 = 北京时间周一 06:13 (UTC+8)
@@ -15,7 +20,7 @@ permissions:
   id-token: write
 
 jobs:
-  # 阶段1：并行抓取所有13家公司 + 行业资讯
+  # 阶段1：并行抓取所有14家公司 + 行业资讯
   fetch-applovin:
     uses: ./.github/workflows/fetch-single.yml
     with:
@@ -75,6 +80,12 @@ jobs:
     with:
       company: TTD
     secrets: inherit
+
+  fetch-topon:
+    uses: ./.github/workflows/fetch-single.yml
+    with:
+      company: TopOn
+    secrets: inherit
   
   fetch-unity:
     uses: ./.github/workflows/fetch-single.yml
@@ -102,10 +113,11 @@ jobs:
   generate-report:
     needs: [fetch-applovin, fetch-bigo, fetch-criteo, fetch-magnite, 
             fetch-mobvista, fetch-moloco, fetch-pubmatic, fetch-taboola,
-            fetch-teads, fetch-ttd, fetch-unity, fetch-viant, fetch-zeta,
+            fetch-teads, fetch-ttd, fetch-topon, fetch-unity, fetch-viant, fetch-zeta,
             fetch-industry]
-    if: always()  # 即使前面有失败也运行
+    if: ${{ always() && !cancelled() }}  # 即使前面有失败也运行，但取消后立即停止
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     
     steps:
       - name: Checkout code
@@ -144,9 +156,20 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO || 'wangmeng42@baidu.com' }}
         run: |
           python integrate_and_send.py
+
+      - name: Verify bilingual outputs
+        run: |
+          zh_report="$(find output -maxdepth 1 -type f -name 'weekly-report-*.html' ! -name '*-en.html' | sort | tail -n 1)"
+          en_report="$(find output -maxdepth 1 -type f -name 'weekly-report-en-*.html' | sort | tail -n 1)"
+          test -n "$zh_report"
+          test -f "$zh_report"
+          test -n "$en_report"
+          test -f "$en_report"
+          echo "ZH report: $zh_report"
+          echo "EN report: $en_report"
       
       - name: Upload final report
-        if: always()
+        if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: weekly-report-final
@@ -174,13 +197,26 @@ jobs:
         id: report_meta
         run: |
           mkdir -p site/reports
-          latest_report="$(find report -maxdepth 1 -type f -name '*.html' | sort | tail -n 1)"
+          mkdir -p site/en/reports
+          latest_report="$(find report -maxdepth 1 -type f -name 'weekly-report-*.html' ! -name '*-en.html' | sort | tail -n 1)"
           latest_markdown="${latest_report%.html}.md"
+          latest_report_en="$(find report -maxdepth 1 -type f -name 'weekly-report-en-*.html' | sort | tail -n 1)"
+          latest_markdown_en="${latest_report_en%.html}.md"
+          test -n "$latest_report"
+          test -f "$latest_report"
+          test -n "$latest_report_en"
+          test -f "$latest_report_en"
           cp "$latest_report" site/index.html
           cp "$latest_report" "site/reports/$(basename "$latest_report")"
           if [ -f "$latest_markdown" ]; then
             cp "$latest_markdown" site/latest.md
             cp "$latest_markdown" "site/reports/$(basename "$latest_markdown")"
+          fi
+          cp "$latest_report_en" site/en/index.html
+          cp "$latest_report_en" "site/en/reports/$(basename "$latest_report_en")"
+          if [ -n "$latest_markdown_en" ] && [ -f "$latest_markdown_en" ]; then
+            cp "$latest_markdown_en" site/en/latest.md
+            cp "$latest_markdown_en" "site/en/reports/$(basename "$latest_markdown_en")"
           fi
           if [ -d deploy/assets ]; then
             mkdir -p site/assets

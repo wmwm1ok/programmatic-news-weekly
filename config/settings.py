@@ -73,6 +73,11 @@ COMPETITOR_SOURCES = {
         "url": "https://www.bigoads.com/resources/blog",
         "type": "blog",
     },
+    "TopOn": {
+        "name": "TopOn",
+        "url": "https://www.toponad.net/en/posts",
+        "type": "blog",
+    },
     "Unity": {
         "name": "Unity",
         "url": "https://unity.com/news",
