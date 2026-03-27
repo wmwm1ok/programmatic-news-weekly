@@ -156,6 +156,17 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO || 'wangmeng42@baidu.com' }}
         run: |
           python integrate_and_send.py
+
+      - name: Verify bilingual outputs
+        run: |
+          zh_report="$(find output -maxdepth 1 -type f -name 'weekly-report-*.html' ! -name '*-en.html' | sort | tail -n 1)"
+          en_report="$(find output -maxdepth 1 -type f -name 'weekly-report-en-*.html' | sort | tail -n 1)"
+          test -n "$zh_report"
+          test -f "$zh_report"
+          test -n "$en_report"
+          test -f "$en_report"
+          echo "ZH report: $zh_report"
+          echo "EN report: $en_report"
       
       - name: Upload final report
         if: ${{ always() && !cancelled() }}
@@ -191,16 +202,18 @@ jobs:
           latest_markdown="${latest_report%.html}.md"
           latest_report_en="$(find report -maxdepth 1 -type f -name 'weekly-report-en-*.html' | sort | tail -n 1)"
           latest_markdown_en="${latest_report_en%.html}.md"
+          test -n "$latest_report"
+          test -f "$latest_report"
+          test -n "$latest_report_en"
+          test -f "$latest_report_en"
           cp "$latest_report" site/index.html
           cp "$latest_report" "site/reports/$(basename "$latest_report")"
           if [ -f "$latest_markdown" ]; then
             cp "$latest_markdown" site/latest.md
             cp "$latest_markdown" "site/reports/$(basename "$latest_markdown")"
           fi
-          if [ -n "$latest_report_en" ] && [ -f "$latest_report_en" ]; then
-            cp "$latest_report_en" site/en/index.html
-            cp "$latest_report_en" "site/en/reports/$(basename "$latest_report_en")"
-          fi
+          cp "$latest_report_en" site/en/index.html
+          cp "$latest_report_en" "site/en/reports/$(basename "$latest_report_en")"
           if [ -n "$latest_markdown_en" ] && [ -f "$latest_markdown_en" ]; then
             cp "$latest_markdown_en" site/en/latest.md
             cp "$latest_markdown_en" "site/en/reports/$(basename "$latest_markdown_en")"
