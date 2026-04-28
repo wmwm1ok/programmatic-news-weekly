@@ -1,5 +1,5 @@
 """
-DeepSeek API 摘要生成模块
+Claude 摘要生成模块
 用于生成 80-100 字的中文摘要
 """
 
@@ -13,22 +13,28 @@ import sys
 import os
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
+from claude_client import ClaudeClient
 from fetchers.base import ContentItem
-from config.settings import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE, DEEPSEEK_MODEL, CONTENT_CONFIG
+from config.settings import CLAUDE_API_KEY, CLAUDE_ENDPOINT, CLAUDE_MODEL, CONTENT_CONFIG
 
 
 class Summarizer:
-    """DeepSeek 摘要生成器"""
+    """Claude 摘要生成器"""
     
     def __init__(self, api_key: str = None, api_base: str = None, model: str = None):
-        self.api_key = api_key or DEEPSEEK_API_KEY
-        self.api_base = api_base or DEEPSEEK_API_BASE
-        self.model = model or DEEPSEEK_MODEL
+        self.api_key = api_key or CLAUDE_API_KEY
+        self.api_base = api_base or CLAUDE_ENDPOINT
+        self.model = model or CLAUDE_MODEL
         self.min_length = CONTENT_CONFIG["summary_min_length"]
         self.max_length = CONTENT_CONFIG["summary_max_length"]
+        self.client = ClaudeClient(
+            api_key=self.api_key,
+            endpoint=self.api_base,
+            model=self.model,
+        )
         
         if not self.api_key:
-            raise ValueError("DeepSeek API Key 未设置，请设置 DEEPSEEK_API_KEY 环境变量")
+            raise ValueError("Claude API Key 未设置，请设置 CLAUDE_API_KEY 环境变量")
     
     def summarize(self, title: str, content: str) -> str:
         """
@@ -96,41 +102,17 @@ class Summarizer:
     
     def _call_api(self, prompt: str) -> Optional[str]:
         """
-        调用 DeepSeek API
+        调用 Claude API
         :param prompt: 提示词
         :return: API 响应内容
         """
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": self.model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "temperature": 0.3,
-            "max_tokens": 300
-        }
-        
         try:
-            response = requests.post(
-                f"{self.api_base}/chat/completions",
-                headers=headers,
-                json=data,
-                timeout=60
+            return self.client.generate(
+                prompt,
+                max_tokens=300,
+                temperature=0.3,
+                system="你是一个严格基于原文事实生成中文摘要的助手。",
             )
-            response.raise_for_status()
-            result = response.json()
-            
-            if "choices" in result and len(result["choices"]) > 0:
-                content = result["choices"][0].get("message", {}).get("content", "")
-                return content.strip()
-            return None
         except requests.exceptions.RequestException as e:
             print(f"API 请求失败: {e}")
             return None

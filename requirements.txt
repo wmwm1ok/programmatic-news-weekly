@@ -8,8 +8,5 @@ lxml>=4.9.0
 # Playwright 浏览器自动化
 playwright>=1.40.0
 
-# DeepSeek API 调用（OpenAI 兼容接口）
-openai>=1.0.0
-
 # 其他工具
 python-dateutil>=2.8.0

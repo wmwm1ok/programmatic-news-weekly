@@ -61,7 +61,7 @@ def main(run_date: datetime = None, test_mode: bool = False, dry_run: bool = Fal
     else:
         try:
             summarizer = Summarizer()
-            print("  摘要生成器: DeepSeek API")
+            print("  摘要生成器: Claude Sonnet 4")
         except ValueError as e:
             print(f"  ⚠️ {e}")
             print("  切换至模拟摘要生成器")

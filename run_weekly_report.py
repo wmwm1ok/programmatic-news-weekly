@@ -6,7 +6,7 @@
 - 发送邮件（HTML 正文形式）
 
 环境变量:
-- DEEPSEEK_API_KEY: DeepSeek API 密钥（用于生成中文摘要）
+- CLAUDE_API_KEY: Claude API 密钥（用于生成中文摘要）
 - SMTP_SERVER: SMTP 服务器（默认: smtp.gmail.com）
 - SMTP_PORT: SMTP 端口（默认: 587）
 - EMAIL_USERNAME: 发件邮箱用户名
@@ -57,13 +57,13 @@ def main():
         print(f"✓ 邮件配置: {email_username}")
         send_email = True
     
-    # 检查 DeepSeek API Key（可选）
-    api_key = os.getenv('DEEPSEEK_API_KEY')
+    # 检查 Claude API Key（可选）
+    api_key = os.getenv('CLAUDE_API_KEY')
     if api_key:
-        print(f"✓ DeepSeek API 已配置")
+        print(f"✓ Claude API 已配置")
         use_ai_summary = True
     else:
-        print(f"⚠️ 未设置 DEEPSEEK_API_KEY，将使用原文摘要")
+        print(f"⚠️ 未设置 CLAUDE_API_KEY，将使用原文摘要")
         use_ai_summary = False
     
     # 1. 抓取竞品资讯（总超时 8 分钟）
@@ -121,7 +121,7 @@ def main():
     
     # 3. 生成中文摘要（可选）
     if use_ai_summary and (competitor_items or total_ind > 0):
-        print("\n[3/4] 使用 DeepSeek 生成中文摘要...")
+        print("\n[3/4] 使用 Claude Sonnet 4 生成中文摘要...")
         
         try:
             summarizer = Summarizer()

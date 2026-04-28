@@ -9,10 +9,16 @@ from datetime import datetime
 # API 配置
 # =============================================================================
 
-# DeepSeek API 配置
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
-DEEPSEEK_API_BASE = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com")
-DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+# Claude API 配置
+CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY", "")
+CLAUDE_ENDPOINT = os.getenv(
+    "CLAUDE_ENDPOINT",
+    "http://osagw.simeji.me/gbu/rest/v1/ai_chat/claude_service",
+)
+CLAUDE_MODEL = os.getenv(
+    "CLAUDE_MODEL",
+    "us.anthropic.claude-sonnet-4-20250514-v1:0",
+)
 
 # =============================================================================
 # 邮件配置

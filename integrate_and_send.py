@@ -206,18 +206,15 @@ def load_industry_results():
 
 
 def generate_chinese_title_summary(title, summary):
-    """使用 DeepSeek 生成中文标题和摘要"""
-    api_key = os.getenv('DEEPSEEK_API_KEY')
+    """使用 Claude 生成中文标题和摘要"""
+    api_key = os.getenv('CLAUDE_API_KEY')
     if not api_key:
         return title, summary[:200] if summary else "无摘要"
     
     try:
-        from openai import OpenAI
+        from claude_client import ClaudeClient
         
-        client = OpenAI(
-            api_key=api_key,
-            base_url="https://api.deepseek.com"
-        )
+        client = ClaudeClient(api_key=api_key)
         
         prompt = f"""请将以下英文新闻标题和内容翻译成中文。
 
@@ -236,14 +233,14 @@ def generate_chinese_title_summary(title, summary):
 
 请确保中文标题简洁明了，不超过30个字。"""
         
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": prompt}],
+        result = client.generate(
+            prompt,
             max_tokens=300,
-            temperature=0.7
+            temperature=0.7,
+            system="你是一个擅长广告技术新闻翻译与压缩总结的中文助手。",
         )
-        
-        result = response.choices[0].message.content.strip()
+        if not result:
+            return title, summary[:200] if summary else "无摘要"
         
         # 解析结果
         chinese_title = title
@@ -296,22 +293,19 @@ def fallback_english_summary(summary: str) -> str:
 
 
 @lru_cache(maxsize=1)
-def get_deepseek_client():
-    api_key = os.getenv('DEEPSEEK_API_KEY')
+def get_claude_client():
+    api_key = os.getenv('CLAUDE_API_KEY')
     if not api_key:
         return None
 
-    from openai import OpenAI
+    from claude_client import ClaudeClient
 
-    return OpenAI(
-        api_key=api_key,
-        base_url="https://api.deepseek.com"
-    )
+    return ClaudeClient(api_key=api_key)
 
 
 def generate_english_summary(title, summary):
-    """使用 DeepSeek 生成精炼英文摘要。"""
-    client = get_deepseek_client()
+    """使用 Claude 生成精炼英文摘要。"""
+    client = get_claude_client()
     if client is None:
         return fallback_english_summary(summary)
 
@@ -330,14 +324,13 @@ Title: {title}
 Content: {(summary or '')[:800]}
 """
 
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": prompt}],
+        result = client.generate(
+            prompt,
             max_tokens=220,
             temperature=0.3,
+            system="You are a concise adtech news editor. Summarize using only facts from the input.",
         )
-        result = (response.choices[0].message.content or "").strip()
-        return fallback_english_summary(result)
+        return fallback_english_summary(result or "")
     except Exception as e:
         print(f"      ⚠️ 英文摘要生成失败: {e}")
         return fallback_english_summary(summary)
@@ -361,8 +354,8 @@ def main():
     email_password = os.getenv('EMAIL_PASSWORD')
     send_email = bool(email_username and email_password)
     
-    # 检查 DeepSeek API
-    api_key = os.getenv('DEEPSEEK_API_KEY')
+    # 检查 Claude API
+    api_key = os.getenv('CLAUDE_API_KEY')
     use_ai_summary = bool(api_key)
     
     if send_email:
@@ -371,9 +364,9 @@ def main():
         print("⚠️ 邮件未配置，将只生成报告")
     
     if use_ai_summary:
-        print("✓ DeepSeek API 已配置，将生成中英文摘要")
+        print("✓ Claude API 已配置，将生成中英文摘要")
     else:
-        print("⚠️ DeepSeek API 未配置，将使用回退摘要")
+        print("⚠️ Claude API 未配置，将使用回退摘要")
     
     # 1. 加载竞品资讯
     print("\n[1/3] 加载竞品资讯...")

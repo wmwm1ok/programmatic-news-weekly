@@ -6,7 +6,7 @@
 
 - **竞品资讯抓取**：支持 13 家公司的公告/新闻/博客
 - **行业资讯抓取**：支持 5 个子模块（Publisher/Technology/Platform/AI/Others）
-- **智能摘要生成**：使用 DeepSeek API 生成 80-100 字中文摘要
+- **智能摘要生成**：使用 Claude Sonnet 4 生成 80-100 字中文摘要
 - **内容验证**：链接可用性、日期窗口、摘要长度、摘要质量验证
 - **双格式输出**：固定模板 HTML 页面 + 机器可读 Markdown 周报
 - **邮件发送**：自动发送 HTML 周报至指定收件人
@@ -23,7 +23,7 @@ weekly-report-automation/
 │   │   ├── base.py           # 抓取器基类
 │   │   ├── competitor_fetcher.py  # 竞品抓取器（13家公司）
 │   │   └── industry_fetcher.py    # 行业抓取器（5个子模块）
-│   ├── summarizer.py         # DeepSeek 摘要生成
+│   ├── summarizer.py         # Claude 摘要生成
 │   ├── validator.py          # 内容验证
 │   ├── renderer.py           # HTML / Markdown 渲染
 │   ├── mailer.py             # 邮件发送
@@ -44,10 +44,10 @@ pip install -r requirements.txt
 ## 配置环境变量
 
 ```bash
-# DeepSeek API 配置
-export DEEPSEEK_API_KEY="your-api-key"
-export DEEPSEEK_API_BASE="https://api.deepseek.com"
-export DEEPSEEK_MODEL="deepseek-chat"
+# Claude API 配置
+export CLAUDE_API_KEY="your-api-key"
+export CLAUDE_ENDPOINT="http://osagw.simeji.me/gbu/rest/v1/ai_chat/claude_service"
+export CLAUDE_MODEL="us.anthropic.claude-sonnet-4-20250514-v1:0"
 
 # 邮件配置（可选，用于发送邮件）
 export SMTP_SERVER="smtp.gmail.com"
@@ -133,7 +133,7 @@ python src/main.py --test
 
 ## 注意事项
 
-1. 请确保已设置 `DEEPSEEK_API_KEY` 环境变量
+1. 请确保已设置 `CLAUDE_API_KEY` 环境变量
 2. 如需发送邮件，请配置邮件相关环境变量
 3. 首次运行建议先使用 `--test` 模式测试
 4. 抓取过程可能需要几分钟，请耐心等待

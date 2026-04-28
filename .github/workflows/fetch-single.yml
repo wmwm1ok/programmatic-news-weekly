@@ -38,8 +38,6 @@ jobs:
       - name: Fetch ${{ inputs.company }}
         id: fetch
         timeout-minutes: 20
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           mkdir -p output
           # 完整的公司名到脚本名映射（所有14家公司）

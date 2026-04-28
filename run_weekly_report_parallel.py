@@ -97,10 +97,10 @@ def main():
     else:
         print("⚠️ 邮件未配置，将只生成报告")
     
-    # 检查 DeepSeek API
-    api_key = os.getenv('DEEPSEEK_API_KEY')
+    # 检查 Claude API
+    api_key = os.getenv('CLAUDE_API_KEY')
     use_ai_summary = bool(api_key)
-    print(f"{'✓' if use_ai_summary else '⚠️'} DeepSeek API: {'已配置' if use_ai_summary else '未配置'}")
+    print(f"{'✓' if use_ai_summary else '⚠️'} Claude API: {'已配置' if use_ai_summary else '未配置'}")
     
     # 1. 加载各分支抓取的结果
     print("\n[1/4] 加载各分支抓取结果...")
@@ -117,7 +117,7 @@ def main():
     
     # 3. 生成中文摘要
     if use_ai_summary and (competitor_items or total_ind > 0):
-        print("\n[3/4] 使用 DeepSeek 生成中文摘要...")
+        print("\n[3/4] 使用 Claude Sonnet 4 生成中文摘要...")
         try:
             summarizer = Summarizer()
             

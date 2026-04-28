@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-使用 DeepSeek API 生成真实摘要
+使用 Claude API 生成真实摘要
 从环境变量读取 API Key，支持 GitHub Actions 运行
 """
 
@@ -17,7 +17,7 @@ from summarizer import Summarizer
 from renderer import HTMLRenderer, save_report_outputs
 
 print("=" * 70)
-print("使用 DeepSeek API 生成周报")
+print("使用 Claude API 生成周报")
 print("=" * 70)
 
 # 使用当前日期作为窗口结束日期
@@ -29,9 +29,9 @@ end_str = str(window_end.date())
 print(f"\n日期窗口: {start_str} ~ {end_str}")
 
 # 检查 API Key
-api_key = os.getenv('DEEPSEEK_API_KEY')
+api_key = os.getenv('CLAUDE_API_KEY')
 if not api_key:
-    print("\n❌ 错误: 未设置 DEEPSEEK_API_KEY 环境变量")
+    print("\n❌ 错误: 未设置 CLAUDE_API_KEY 环境变量")
     sys.exit(1)
 else:
     print(f"✓ API Key 已设置")
@@ -89,8 +89,8 @@ except Exception as e:
     industry_items = {}
     total_ind = 0
 
-# 3. 使用 DeepSeek 生成摘要
-print("\n[3/4] 使用 DeepSeek 生成中文摘要...")
+# 3. 使用 Claude 生成摘要
+print("\n[3/4] 使用 Claude Sonnet 4 生成中文摘要...")
 
 try:
     summarizer = Summarizer()

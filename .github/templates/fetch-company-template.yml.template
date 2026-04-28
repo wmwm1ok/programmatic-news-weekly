@@ -31,8 +31,6 @@ jobs:
 
       - name: "Fetch {{COMPANY_NAME}} only"
         id: fetch
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           python fetch_{{COMPANY_KEY}}_only.py
           # 输出结果到 GitHub outputs
