@@ -47,6 +47,7 @@ pip install -r requirements.txt
 # Claude API 配置
 export CLAUDE_API_KEY="your-api-key"
 export CLAUDE_ENDPOINT="http://osagw.simeji.me/gbu/rest/v1/ai_chat/claude_service"
+export CLAUDE_HOST="gbu.jp02-a30-apisix-online.baidu-int.com"
 export CLAUDE_MODEL="us.anthropic.claude-sonnet-4-20250514-v1:0"
 
 # 邮件配置（可选，用于发送邮件）

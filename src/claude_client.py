@@ -6,9 +6,10 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import json
 import requests
 
-from config.settings import CLAUDE_API_KEY, CLAUDE_ENDPOINT, CLAUDE_MODEL
+from config.settings import CLAUDE_API_KEY, CLAUDE_ENDPOINT, CLAUDE_HOST, CLAUDE_MODEL
 
 
 class ClaudeClient:
@@ -22,6 +23,7 @@ class ClaudeClient:
     ) -> None:
         self.api_key = api_key or CLAUDE_API_KEY
         self.endpoint = endpoint or CLAUDE_ENDPOINT
+        self.host = CLAUDE_HOST
         self.model = model or CLAUDE_MODEL
 
         if not self.api_key:
@@ -37,10 +39,9 @@ class ClaudeClient:
         timeout: int = 60,
     ) -> Optional[str]:
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "x-api-key": self.api_key,
             "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01",
+            "apikey": self.api_key,
+            "Host": self.host,
         }
 
         data = {
@@ -48,13 +49,13 @@ class ClaudeClient:
             "messages": [
                 {
                     "role": "user",
-                    "content": prompt,
+                    "content": [{"type": "text", "text": prompt}],
                 }
             ],
-            "prompt": prompt,
+            "top_p": 1,
+            "top_k": 250,
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "stream": False,
         }
         if system:
             data["system"] = system
@@ -62,7 +63,7 @@ class ClaudeClient:
         response = requests.post(
             self.endpoint,
             headers=headers,
-            json=data,
+            data=json.dumps(data),
             timeout=timeout,
         )
         response.raise_for_status()

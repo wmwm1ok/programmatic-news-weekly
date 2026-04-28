@@ -15,6 +15,10 @@ CLAUDE_ENDPOINT = os.getenv(
     "CLAUDE_ENDPOINT",
     "http://osagw.simeji.me/gbu/rest/v1/ai_chat/claude_service",
 )
+CLAUDE_HOST = os.getenv(
+    "CLAUDE_HOST",
+    "gbu.jp02-a30-apisix-online.baidu-int.com",
+)
 CLAUDE_MODEL = os.getenv(
     "CLAUDE_MODEL",
     "us.anthropic.claude-sonnet-4-20250514-v1:0",
