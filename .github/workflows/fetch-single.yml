@@ -13,6 +13,9 @@ on:
         default: 'stealth'
         description: '使用的抓取器 (http, playwright, stealth)'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
