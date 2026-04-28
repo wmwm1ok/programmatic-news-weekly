@@ -150,6 +150,8 @@ jobs:
       - name: Integrate and send report
         env:
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          # 仅用于今天(2026-04-28)的测试重跑，过期后会自动恢复跨周去重
+          REPORT_SKIP_HISTORY_DEDUPE_UNTIL: "2026-04-28"
           SMTP_SERVER: ${{ secrets.SMTP_SERVER || 'smtp.gmail.com' }}
           SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
           EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}

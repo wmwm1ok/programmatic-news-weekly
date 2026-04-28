@@ -46,6 +46,24 @@ def normalize_company_items(items, limit=2):
     return sorted(items, key=lambda item: (item.date or "", item.title), reverse=True)[:limit]
 
 
+def should_skip_history_dedupe(today):
+    """支持通过环境变量临时关闭跨周去重。"""
+    explicit_flag = os.getenv("REPORT_SKIP_HISTORY_DEDUPE", "").strip().lower()
+    if explicit_flag in {"1", "true", "yes", "on"}:
+        return True, "REPORT_SKIP_HISTORY_DEDUPE"
+
+    until_str = os.getenv("REPORT_SKIP_HISTORY_DEDUPE_UNTIL", "").strip()
+    if until_str:
+        try:
+            until_date = datetime.strptime(until_str, "%Y-%m-%d").date()
+            if today <= until_date:
+                return True, f"REPORT_SKIP_HISTORY_DEDUPE_UNTIL={until_str}"
+        except ValueError:
+            print(f"  ⚠️ REPORT_SKIP_HISTORY_DEDUPE_UNTIL 格式无效: {until_str}，应为 YYYY-MM-DD")
+
+    return False, ""
+
+
 def _refresh_company_items(
     company_key,
     current_items,
@@ -371,12 +389,17 @@ def main():
     # 1. 加载竞品资讯
     print("\n[1/3] 加载竞品资讯...")
     competitor_results = load_company_results()
-    previous_signatures = load_previous_report_signatures()
-    if previous_signatures:
-        print(f"  检测到上一期已发布内容: {len(previous_signatures)} 条签名")
-        competitor_results = filter_competitor_results(competitor_results, previous_signatures)
+    skip_history_dedupe, reason = should_skip_history_dedupe(window_end.date())
+    if skip_history_dedupe:
+        previous_signatures = set()
+        print(f"  ⚠️ 临时关闭跨周去重（{reason}），本次重跑保留更多候选新闻")
     else:
-        print("  ⚠️ 未能加载上一期报告，跳过跨周去重")
+        previous_signatures = load_previous_report_signatures()
+        if previous_signatures:
+            print(f"  检测到上一期已发布内容: {len(previous_signatures)} 条签名")
+            competitor_results = filter_competitor_results(competitor_results, previous_signatures)
+        else:
+            print("  ⚠️ 未能加载上一期报告，跳过跨周去重")
     competitor_results = ensure_company_coverage(
         competitor_results,
         window_start,
